@@ -35,7 +35,7 @@ The workbook currently contains one worksheet, **Planner**, organized into:
 4. **Employer Obligations and Cash Planning**
 5. **Copy-Ready Payroll Snapshot**
 
-Blue cells are user inputs. Formula cells are black. The visible lookup table controls the Cash Health Status thresholds.
+Blue cells are user inputs. Formula cells are green. The visible lookup table controls the Cash Health Status thresholds.
 
 ## Getting started
 
