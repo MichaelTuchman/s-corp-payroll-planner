@@ -1,0 +1,15 @@
+# Microsoft Office temporary files
+~$*.xlsx
+~$*.xlsm
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+
+# Generated archives
+*.zip
