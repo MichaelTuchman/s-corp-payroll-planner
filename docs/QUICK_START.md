@@ -52,4 +52,5 @@ Use the model for planning. After the accountant or payroll provider runs payrol
 
 ## 6. Preserve a monthly snapshot
 
-The horizontal snapshot at the bottom is designed for a future value-only payroll register. Until an automated recording feature exists, copy the snapshot and paste values into a separate record if desired.
+The horizontal snapshot at the bottom is designed for a payroll register. Until an automated recording feature exists, copy the snapshot and paste values into a separate record if desired.  One approach is to copy evertyhing down one row every month if you want to keep using the same spreadsheet.  However, the roadmap is for this functionality to migrate elsewhere.
+
