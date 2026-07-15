@@ -1,6 +1,9 @@
 # Payroll and cash-planning calculations, ported 1:1 from the Planner
 # worksheet's Section 3-5 formulas (workbook/Solo_S_Corp_Payroll_Cash_Planner.xlsx).
 
+# Intentionally hardcoded, not exposed as a UI input: these are the
+# product's own safety-margin policy, not a per-scenario assumption like
+# a tax rate. A read-only reference table may be added later.
 health_status_table <- data.frame(
   threshold = c(-100, 0, 0.05, 0.10, 0.15, 1),
   status = c("DEFICIT", "DIRE WARNING", "TOO CLOSE", "OK", "SAFE", "GREAT"),
@@ -99,6 +102,68 @@ calculate_planner <- function(inputs, tax) {
     health_status = health_status
   )
 }
+
+# Reference definitions for the Glossary modal, condensed from the
+# workbook's own "What it means" / "Formula basis" / "Interpretation" columns.
+glossary <- data.frame(
+  Term = c(
+    "Planning month", "Planned billable hours", "Billing rate", "Wage rate",
+    "Expected client receipts", "Beginning LLC cash", "Other operating expenses",
+    "Payroll service fees", "Minimum operating cash reserve", "SEP contribution rate",
+    "YTD wages before this payroll", "YTD SEP contributions before this payroll",
+    "Federal withholding planning rate", "Employee/Employer Social Security rate",
+    "Social Security wage base", "Employee/Employer Medicare rate",
+    "Additional Medicare rate", "Additional Medicare threshold", "State income-tax rate",
+    "Local income / occupational tax rate", "Employee/Employer state unemployment rate",
+    "State unemployment wage base", "Employee/Employer leave / disability rate",
+    "Other state payroll-tax rate", "FUTA rate", "FUTA wage base",
+    "SEP annual contribution limit", "Expected billed revenue", "Receipts timing difference",
+    "Gross W-2 wages", "Total employee withholding", "Net employee paycheck",
+    "SEP contribution", "Total payroll cash requirement", "Cash after all obligations",
+    "Available cash", "Available cash margin", "Cash Health Status"
+  ),
+  Definition = c(
+    "The month this scenario models.",
+    "Client hours expected this month; drives revenue and gross wages.",
+    "Amount charged per billable hour.",
+    "Hourly W-2 wage paid to the owner-employee.",
+    "Cash expected from the client this month — may differ from billed revenue.",
+    "Business cash on hand before this month's activity.",
+    "Insurance, software, accounting, travel, and similar costs.",
+    "Accountant or payroll-provider fee.",
+    "Cash intentionally kept in reserve after all obligations are met.",
+    "Employer-only retirement contribution, as a % of wages.",
+    "Wages already paid earlier this year, for applying annual wage caps.",
+    "SEP contributions already made this year, for the annual SEP limit.",
+    "Estimated % of wages withheld for federal income tax.",
+    "FICA OASDI rate — normally 6.2% on both the employee and employer side.",
+    "Annual wage level above which Social Security tax stops applying.",
+    "Medicare payroll tax rate — normally 1.45% on both sides.",
+    "Extra employee Medicare withholding (0.9%) on wages above the threshold.",
+    "Annual wage level (IRS default $200,000) above which Additional Medicare applies.",
+    "Your state's income-tax withholding rate on wages.",
+    "Local payroll tax rate, if your area has one.",
+    "State unemployment insurance (SUI) contribution rate.",
+    "Annual wage cap for state unemployment tax.",
+    "State paid-family-leave or disability-insurance rate.",
+    "Any other state payroll assessment not covered above.",
+    "Federal Unemployment Tax Act rate — federal unemployment insurance.",
+    "Annual wage cap for FUTA.",
+    "IRS cap on total employer SEP contributions per year.",
+    "Planned billable hours × billing rate.",
+    "Expected client receipts minus expected billed revenue.",
+    "Planned billable hours × wage rate.",
+    "Sum of everything withheld from the paycheck (taxes, etc.).",
+    "Gross wages minus total employee withholding.",
+    "Simplified Employee Pension — an employer-funded retirement contribution.",
+    "Net paycheck plus all tax deposits and reserves for this payroll.",
+    "Beginning cash + receipts − payroll requirement − other expenses.",
+    "Cash after obligations, minus the minimum reserve you want to keep.",
+    "Available cash ÷ expected client receipts.",
+    "A DEFICIT-to-GREAT rating based on the available cash margin (see the thresholds table in the Glossary)."
+  ),
+  stringsAsFactors = FALSE
+)
 
 # Builds the 41-column horizontal snapshot row (mirrors row 87 of the workbook).
 build_snapshot_row <- function(inputs, tax, results) {

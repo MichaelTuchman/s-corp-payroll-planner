@@ -79,7 +79,7 @@ ui <- page_sidebar(
         numericInput("other_opex", "Other operating expenses ($)", value = 0, min = 0),
         numericInput("payroll_fees", "Payroll service fees ($)", value = 0, min = 0),
         numericInput("min_cash_reserve", "Minimum operating cash reserve ($)", value = 0, min = 0),
-        numericInput("sep_rate", "SEP contribution rate (%)", value = 0, min = 0, max = 100, step = 0.5),
+        numericInput("sep_rate", "SEP contribution rate (%) (retirement)", value = 0, min = 0, max = 100, step = 0.5),
         numericInput("ytd_wages", "YTD wages before this payroll ($)", value = 0, min = 0),
         numericInput("ytd_sep", "YTD SEP contributions before this payroll ($)", value = 0, min = 0),
         textInput("notes", "Notes", value = "July planning scenario")
@@ -92,7 +92,7 @@ ui <- page_sidebar(
         numericInput("ss_wage_base", "Social Security wage base ($ annual)", value = 184500, min = 0),
         numericInput("ee_medicare_rate", "Employee Medicare rate (%)", value = 1.45, min = 0, max = 100, step = 0.01),
         numericInput("er_medicare_rate", "Employer Medicare rate (%)", value = 1.45, min = 0, max = 100, step = 0.01),
-        numericInput("add_medicare_rate", "Additional Medicare rate (%)", value = 0.9, min = 0, max = 100, step = 0.01),
+        numericInput("add_medicare_rate", "Additional Medicare rate (%) (surtax above threshold)", value = 0.9, min = 0, max = 100, step = 0.01),
         numericInput("add_medicare_threshold", "Additional Medicare threshold ($ annual)", value = 200000, min = 0),
         numericInput("state_income_tax_rate", "State income-tax rate (%)", value = 6, min = 0, max = 100, step = 0.01),
         numericInput("local_tax_rate", "Local income / occupational tax rate (%)", value = 0, min = 0, max = 100, step = 0.01),
@@ -102,11 +102,16 @@ ui <- page_sidebar(
         numericInput("ee_leave_rate", "Employee leave / disability rate (%)", value = 0, min = 0, max = 100, step = 0.01),
         numericInput("er_leave_rate", "Employer leave / disability rate (%)", value = 0, min = 0, max = 100, step = 0.01),
         numericInput("other_state_er_rate", "Other state payroll-tax rate (%)", value = 0, min = 0, max = 100, step = 0.01),
-        numericInput("futa_rate", "FUTA rate (%)", value = 0.6, min = 0, max = 100, step = 0.01),
+        numericInput("futa_rate", "FUTA rate (%) (federal unemployment tax)", value = 0.6, min = 0, max = 100, step = 0.01),
         numericInput("futa_wage_base", "FUTA wage base ($ annual)", value = 7000, min = 0),
-        numericInput("sep_annual_limit", "SEP annual contribution limit ($)", value = 72000, min = 0)
+        numericInput("sep_annual_limit", "SEP annual contribution limit ($) (retirement)", value = 72000, min = 0)
       )
     )
+  ),
+
+  div(
+    style = "text-align: right;",
+    actionButton("show_glossary", "Glossary", icon = bsicons::bs_icon("book"), class = "btn-outline-secondary btn-sm")
   ),
 
   div(
@@ -159,6 +164,39 @@ ui <- page_sidebar(
 )
 
 server <- function(input, output, session) {
+
+  observeEvent(input$show_glossary, {
+    showModal(modalDialog(
+      title = "Glossary",
+      div(
+        style = "max-height: 60vh; overflow-y: auto;",
+        strong("Cash Health Status thresholds"),
+        p("Fixed by the app, not user-editable — the available cash margin is looked up against these bands:"),
+        tableOutput("thresholds_table"),
+        hr(),
+        strong("Term definitions"),
+        tableOutput("glossary_table")
+      ),
+      easyClose = TRUE,
+      size = "l"
+    ))
+  })
+
+  output$glossary_table <- renderTable(glossary, striped = TRUE, bordered = TRUE, colnames = TRUE)
+
+  output$thresholds_table <- renderTable({
+    t <- health_status_table
+    n <- nrow(t)
+    ranges <- character(n)
+    ranges[1] <- paste("Below", pct(t$threshold[2]))
+    if (n > 2) {
+      for (i in 2:(n - 1)) {
+        ranges[i] <- paste(pct(t$threshold[i]), "to under", pct(t$threshold[i + 1]))
+      }
+    }
+    ranges[n] <- paste(pct(t$threshold[n]), "or more")
+    data.frame("Available Cash Margin" = ranges, "Status" = t$status, check.names = FALSE)
+  }, striped = TRUE, bordered = TRUE, colnames = TRUE)
 
   inputs <- reactive({
     list(
@@ -227,7 +265,7 @@ server <- function(input, output, session) {
     data.frame(
       Item = c(
         "Gross W-2 wages", "Federal income tax withheld", "Employee Social Security",
-        "Employee Medicare", "Additional Medicare", "State income tax",
+        "Employee Medicare", "Additional Medicare (surtax above threshold)", "State income tax",
         "Local income / occupational tax", "Employee state unemployment",
         "Employee leave / disability", "Total employee withholding", "Net employee paycheck"
       ),
@@ -245,7 +283,8 @@ server <- function(input, output, session) {
     data.frame(
       Item = c(
         "Employer Social Security", "Employer Medicare", "Employer state unemployment",
-        "Employer leave / disability", "Other state payroll tax", "FUTA", "SEP contribution",
+        "Employer leave / disability", "Other state payroll tax (catch-all)",
+        "FUTA (federal unemployment tax)", "SEP contribution (retirement)",
         "Total payroll cash requirement", "Cash after all obligations", "Available cash"
       ),
       Amount = c(
