@@ -1,6 +1,4 @@
 # Microsoft Office temporary files
-~$*.xlsx
-~$*.xlsm
 
 # Operating-system files
 .DS_Store
@@ -13,3 +11,4 @@ Thumbs.db
 
 # Generated archives
 *.zip
+.Rproj.user
