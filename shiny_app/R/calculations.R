@@ -213,6 +213,7 @@ glossary <- data.frame(
 # Builds the 41-column horizontal snapshot row (mirrors row 87 of the workbook).
 build_snapshot_row <- function(inputs, tax, results) {
   data.frame(
+    "Notes" = inputs$notes,
     "Month" = format(inputs$planning_month, "%Y-%m"),
     "Planned Billable Hours" = inputs$billable_hours,
     "Billing Rate ($/hr)" = inputs$billing_rate,
@@ -254,7 +255,6 @@ build_snapshot_row <- function(inputs, tax, results) {
     "Available Cash ($)" = results$available_cash,
     "Available Cash Margin" = results$available_cash_margin,
     "Cash Health Status" = results$health_status,
-    "Notes" = inputs$notes,
     check.names = FALSE
   )
 }

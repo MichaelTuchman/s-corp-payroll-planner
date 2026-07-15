@@ -147,17 +147,15 @@ ui <- page_sidebar(
 
   card(
     card_header("Copy-Ready Payroll Snapshot"),
-    div(style = "overflow-x: auto;", tableOutput("snapshot_table")),
-    downloadButton("download_snapshot", "Download snapshot (CSV)"),
-    hr(),
-    strong("Update a payroll register you keep on your machine"),
-    p(
-      "Upload a register CSV you've saved before. This scenario's row replaces any existing ",
-      "row for the same month (or is appended if the month is new), and you download the merged file back."
+    p("Dial in a scenario above, then add it to the table below. Repeat for as many scenarios as you like, then download them all at once."),
+    div(
+      actionButton("add_snapshot", "Add this scenario to the table", icon = bsicons::bs_icon("plus-square"), class = "btn-primary"),
+      actionButton("clear_snapshots", "Clear table", icon = bsicons::bs_icon("trash"), class = "btn-outline-secondary"),
+      style = "margin-bottom: 10px;"
     ),
-    fileInput("register_upload", "Existing register CSV (optional)", accept = ".csv"),
-    textOutput("register_status"),
-    downloadButton("download_register", "Download updated register (CSV)")
+    textOutput("snapshot_count"),
+    div(style = "overflow-x: auto;", tableOutput("snapshot_table")),
+    downloadButton("download_snapshot", "Download snapshot table (CSV)")
   )
 )
 
@@ -297,51 +295,35 @@ server <- function(input, output, session) {
     build_snapshot_row(inputs(), tax(), results())
   })
 
+  # Captured scenarios accumulate in-session only: one row per click of
+  # "Add this scenario", in click order, with no dedup or upsert-by-month.
+  # This lives in browser-session memory, not on disk — download before
+  # the tab closes or the session times out.
+  captured_snapshots <- reactiveVal(NULL)
+
+  observeEvent(input$add_snapshot, {
+    existing <- captured_snapshots()
+    captured_snapshots(if (is.null(existing)) snapshot() else rbind(existing, snapshot()))
+  })
+
+  observeEvent(input$clear_snapshots, {
+    captured_snapshots(NULL)
+  })
+
+  output$snapshot_count <- renderText({
+    n <- nrow(captured_snapshots())
+    if (is.null(n) || n == 0) "No scenarios captured yet." else paste(n, "scenario(s) captured.")
+  })
+
   output$snapshot_table <- renderTable({
-    snapshot()
+    validate(need(!is.null(captured_snapshots()), "Add a scenario to see it here."))
+    captured_snapshots()
   }, striped = TRUE, bordered = TRUE, colnames = TRUE)
 
   output$download_snapshot <- downloadHandler(
-    filename = function() {
-      paste0("payroll_snapshot_", format(input$planning_month, "%Y-%m"), ".csv")
-    },
+    filename = function() "payroll_snapshots.csv",
     content = function(file) {
-      write.csv(snapshot(), file, row.names = FALSE)
-    }
-  )
-
-  # Upsert this scenario's row into an uploaded register CSV, keyed on Month.
-  register_merge <- reactive({
-    new_row <- snapshot()
-    upload <- input$register_upload
-    if (is.null(upload)) {
-      return(list(data = new_row, status = "No register uploaded — downloading a new one-row register."))
-    }
-    existing <- tryCatch(
-      read.csv(upload$datapath, stringsAsFactors = FALSE, check.names = FALSE),
-      error = function(e) NULL
-    )
-    if (is.null(existing) || !setequal(names(existing), names(new_row))) {
-      return(list(
-        data = new_row,
-        status = "Uploaded file's columns don't match this snapshot's format — downloading this scenario alone instead of merging."
-      ))
-    }
-    existing <- existing[, names(new_row), drop = FALSE]
-    is_same_month <- existing$Month == new_row$Month
-    merged <- rbind(existing[!is_same_month, , drop = FALSE], new_row)
-    action <- if (any(is_same_month)) "Replaced" else "Appended"
-    list(data = merged, status = paste0(action, " the row for ", new_row$Month, ". Register now has ", nrow(merged), " row(s)."))
-  })
-
-  output$register_status <- renderText(register_merge()$status)
-
-  output$download_register <- downloadHandler(
-    filename = function() {
-      if (!is.null(input$register_upload)) input$register_upload$name else "payroll_register.csv"
-    },
-    content = function(file) {
-      write.csv(register_merge()$data, file, row.names = FALSE)
+      write.csv(captured_snapshots(), file, row.names = FALSE)
     }
   )
 }
