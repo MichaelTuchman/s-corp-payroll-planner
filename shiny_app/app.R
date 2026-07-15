@@ -22,6 +22,44 @@ status_theme <- function(status) {
 money <- function(x) dollar(x, accuracy = 0.01)
 pct <- function(x) percent(x, accuracy = 0.01)
 
+# Every numeric input feeds the calculation chain; a blank (NA) value in any
+# of them propagates to an NA index in the health-status lookup, where
+# if (idx < 1) throws "missing value where TRUE/FALSE needed" and Shiny
+# shows its generic red error box. Validating here shows a clear message
+# instead, for whichever field the user blanked.
+numeric_field_labels <- c(
+  billable_hours = "Planned Billable Hours",
+  billing_rate = "Billing Rate",
+  wage_rate = "Wage Rate",
+  client_receipts = "Expected Client Receipts",
+  beginning_cash = "Beginning LLC Cash",
+  other_opex = "Other Operating Expenses",
+  payroll_fees = "Payroll Service Fees",
+  min_cash_reserve = "Minimum Operating Cash Reserve",
+  sep_rate = "SEP Contribution Rate",
+  ytd_wages = "YTD Wages Before This Payroll",
+  ytd_sep = "YTD SEP Contributions Before This Payroll",
+  fed_wh_rate = "Federal Withholding Planning Rate",
+  ee_ss_rate = "Employee Social Security Rate",
+  er_ss_rate = "Employer Social Security Rate",
+  ss_wage_base = "Social Security Wage Base",
+  ee_medicare_rate = "Employee Medicare Rate",
+  er_medicare_rate = "Employer Medicare Rate",
+  add_medicare_rate = "Additional Medicare Rate",
+  add_medicare_threshold = "Additional Medicare Threshold",
+  state_income_tax_rate = "State Income-Tax Rate",
+  local_tax_rate = "Local Income / Occupational Tax Rate",
+  ee_sui_rate = "Employee State Unemployment Rate",
+  er_sui_rate = "Employer State Unemployment Rate",
+  sui_wage_base = "State Unemployment Wage Base",
+  ee_leave_rate = "Employee Leave / Disability Rate",
+  er_leave_rate = "Employer Leave / Disability Rate",
+  other_state_er_rate = "Other State Payroll-Tax Rate",
+  futa_rate = "FUTA Rate",
+  futa_wage_base = "FUTA Wage Base",
+  sep_annual_limit = "SEP Annual Contribution Limit"
+)
+
 ui <- page_sidebar(
   title = paste("Solo S-Corp Payroll & Cash Planner —", app_version),
   theme = bs_theme(version = 5, bootswatch = "flatly"),
@@ -167,6 +205,9 @@ server <- function(input, output, session) {
   })
 
   results <- reactive({
+    for (field_id in names(numeric_field_labels)) {
+      validate(need(!is.na(input[[field_id]]), paste(numeric_field_labels[[field_id]], "should not be blank")))
+    }
     calculate_planner(inputs(), tax())
   })
 
