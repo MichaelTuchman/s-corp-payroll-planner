@@ -30,7 +30,7 @@ pct <- function(x) percent(x, accuracy = 0.01)
 numeric_field_labels <- c(
   billable_hours = "Planned Billable Hours",
   billing_rate = "Billing Rate",
-  client_receipts = "Expected Client Receipts",
+  additional_receipts = "Additional Receipts",
   beginning_cash = "Beginning LLC Cash",
   other_opex = "Other Operating Expenses",
   payroll_fees = "Payroll Service Fees",
@@ -72,7 +72,8 @@ ui <- page_sidebar(
         numericInput("billable_hours", "Planned billable hours", value = 157, min = 0),
         numericInput("billing_rate", "Billing rate ($/hour)", value = 100, min = 0),
         sliderInput("wage_rate", "Wage rate ($/hour) — slide to see the Cash Health Status change", value = 50, min = 0, max = 120, step = 1),
-        numericInput("client_receipts", "Expected client receipts ($)", value = 15700, min = 0),
+        numericInput("additional_receipts", "Additional receipts ($) (beyond rate × hours — e.g. prior-month collections, retainers, advances; can be negative)", value = 0),
+        div(style = "margin-top: -10px; margin-bottom: 15px; color: #495057;", "Expected client receipts: ", strong(textOutput("expected_receipts_preview", inline = TRUE))),
         numericInput("beginning_cash", "Beginning LLC cash ($)", value = 0),
         numericInput("other_opex", "Other operating expenses ($)", value = 0, min = 0),
         numericInput("payroll_fees", "Payroll service fees ($)", value = 0, min = 0),
@@ -210,7 +211,7 @@ server <- function(input, output, session) {
       billable_hours = input$billable_hours,
       billing_rate = input$billing_rate,
       wage_rate = input$wage_rate,
-      client_receipts = input$client_receipts,
+      additional_receipts = input$additional_receipts,
       beginning_cash = input$beginning_cash,
       other_opex = input$other_opex,
       payroll_fees = input$payroll_fees,
@@ -255,6 +256,7 @@ server <- function(input, output, session) {
 
   output$available_cash_out <- renderText(money(results()$available_cash))
   output$margin_out <- renderText(pct(results()$available_cash_margin))
+  output$expected_receipts_preview <- renderText(money(results()$client_receipts))
 
   output$status_box <- renderUI({
     status <- results()$health_status

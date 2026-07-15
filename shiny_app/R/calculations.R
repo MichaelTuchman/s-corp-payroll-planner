@@ -20,7 +20,7 @@ lookup_health_status <- function(margin) {
 calculate_planner <- function(inputs, tax) {
   gross_wages <- inputs$billable_hours * inputs$wage_rate
   expected_billed_revenue <- inputs$billable_hours * inputs$billing_rate
-  receipts_timing_diff <- inputs$client_receipts - expected_billed_revenue
+  client_receipts <- expected_billed_revenue + inputs$additional_receipts
 
   ss_taxable <- min(gross_wages, max(0, tax$ss_wage_base - inputs$ytd_wages))
   sui_taxable <- min(gross_wages, max(0, tax$sui_wage_base - inputs$ytd_wages))
@@ -60,15 +60,15 @@ calculate_planner <- function(inputs, tax) {
   total_payroll_cash_requirement <- net_paycheck + federal_deposit + state_wh_deposit +
     local_deposit + sui_deposit + leave_deposit + other_state_deposit + futa_reserve + sep_reserve
 
-  cash_after_obligations <- inputs$beginning_cash + inputs$client_receipts -
+  cash_after_obligations <- inputs$beginning_cash + client_receipts -
     total_payroll_cash_requirement - inputs$other_opex - inputs$payroll_fees
   available_cash <- cash_after_obligations - inputs$min_cash_reserve
-  available_cash_margin <- if (inputs$client_receipts == 0) -1 else available_cash / inputs$client_receipts
+  available_cash_margin <- if (client_receipts == 0) -1 else available_cash / client_receipts
   health_status <- lookup_health_status(available_cash_margin)
 
   list(
     expected_billed_revenue = expected_billed_revenue,
-    receipts_timing_diff = receipts_timing_diff,
+    client_receipts = client_receipts,
     gross_wages = gross_wages,
     fed_withholding = fed_withholding,
     ee_ss = ee_ss,
@@ -111,7 +111,7 @@ calculate_planner <- function(inputs, tax) {
 glossary <- data.frame(
   Term = c(
     "Planning month", "Planned billable hours", "Billing rate", "Wage rate",
-    "Expected client receipts", "Beginning LLC cash", "Other operating expenses",
+    "Additional receipts", "Expected client receipts", "Beginning LLC cash", "Other operating expenses",
     "Payroll service fees", "Minimum operating cash reserve", "SEP contribution rate",
     "YTD wages before this payroll", "YTD SEP contributions before this payroll", "Notes",
     "Federal withholding planning rate", "Employee Social Security rate", "Employer Social Security rate",
@@ -120,7 +120,7 @@ glossary <- data.frame(
     "Local income / occupational tax rate", "Employee state unemployment rate", "Employer state unemployment rate",
     "State unemployment wage base", "Employee leave / disability rate", "Employer leave / disability rate",
     "Other state payroll-tax rate", "FUTA rate", "FUTA wage base",
-    "SEP annual contribution limit", "Expected billed revenue", "Receipts timing difference",
+    "SEP annual contribution limit", "Expected billed revenue",
     "Gross W-2 wages", "Federal income tax withheld", "Employee Social Security", "Employee Medicare",
     "Additional Medicare", "State income tax", "Local income / occupational tax",
     "Employee state unemployment", "Employee leave / disability", "Total employee withholding",
@@ -134,7 +134,8 @@ glossary <- data.frame(
     "Drives billed revenue and gross wages.",
     "Converts hours into expected billed revenue.",
     "Converts hours into gross payroll.",
-    "Cash planning uses receipts, not only billed revenue.",
+    "Cash beyond rate x hours — e.g. a prior-month collection, retainer, or advance.",
+    "Rate x hours, plus any additional receipts. Cash planning uses receipts, not only billed revenue.",
     "Determines cash available before payroll.",
     "Reduces available cash.",
     "Reduces available cash.",
@@ -162,8 +163,7 @@ glossary <- data.frame(
     "Federal unemployment estimate.",
     "Caps FUTA estimate.",
     "Caps employer SEP contribution.",
-    "Billable hours × billing rate. Not necessarily cash until collected — for prompt-paying clients it normally equals expected receipts.",
-    "Expected client receipts − expected billed revenue. Zero means billing and receipts match for the month.",
+    "Billable hours × billing rate.",
     "Billable hours × wage rate.",
     "Gross wages × federal planning rate.",
     "Subject to annual wage base.",
@@ -190,7 +190,7 @@ glossary <- data.frame(
   ),
   "Source Info" = c(
     "User input", "User input", "Client contract", "Owner compensation policy",
-    "User input", "Bank balance", "User input", "User input", "Owner policy",
+    "User input", "Calculated", "Bank balance", "User input", "User input", "Owner policy",
     "Owner policy", "Payroll records", "Retirement records", "User input",
     "Replace with accountant's actual withholding when available.",
     "IRS Publication 15", "IRS Publication 15", "SSA annual wage base",
@@ -200,7 +200,7 @@ glossary <- data.frame(
     "Enter current state wage base.", "Enter zero if none applies.",
     "Enter zero if none applies.", "Enter zero if none applies.",
     "Assumes full state credit.", "IRS Topic 759", "IRS annual limit",
-    "Calculated", "Calculated", "Calculated", "Calculated", "Calculated",
+    "Calculated", "Calculated", "Calculated", "Calculated",
     "Calculated", "Calculated", "Calculated", "Calculated", "Calculated",
     "Calculated", "Calculated", "Calculated", "Calculated", "Calculated",
     "Calculated", "Calculated", "Calculated", "Calculated", "Calculated",
@@ -223,7 +223,8 @@ build_snapshot_row <- function(inputs, tax, results) {
     "Billing Rate ($/hr)" = inputs$billing_rate,
     "Wage Rate ($/hr)" = inputs$wage_rate,
     "Expected Billed Revenue ($)" = results$expected_billed_revenue,
-    "Expected Client Receipts ($)" = inputs$client_receipts,
+    "Additional Receipts ($)" = inputs$additional_receipts,
+    "Expected Client Receipts ($)" = results$client_receipts,
     "Beginning LLC Cash ($)" = inputs$beginning_cash,
     "Gross Wages ($)" = results$gross_wages,
     "Federal Withholding Rate" = tax$fed_wh_rate,
