@@ -73,6 +73,7 @@ ui <- page_sidebar(
 
   div(
     class = "alert alert-warning",
+    style = "color: red;",
     strong("DISCLAIMER: "), "Use for planning purposes only. Tax and payroll filing should be performed only by a professional.",
     br(),
     "One S corporation. One W-2 employee, who is also the owner. One payroll scenario at a time. Not payroll processing or tax-return preparation."
@@ -108,7 +109,16 @@ ui <- page_sidebar(
   card(
     card_header("Copy-Ready Payroll Snapshot"),
     div(style = "overflow-x: auto;", tableOutput("snapshot_table")),
-    downloadButton("download_snapshot", "Download snapshot (CSV)")
+    downloadButton("download_snapshot", "Download snapshot (CSV)"),
+    hr(),
+    strong("Update a payroll register you keep on your machine"),
+    p(
+      "Upload a register CSV you've saved before. This scenario's row replaces any existing ",
+      "row for the same month (or is appended if the month is new), and you download the merged file back."
+    ),
+    fileInput("register_upload", "Existing register CSV (optional)", accept = ".csv"),
+    textOutput("register_status"),
+    downloadButton("download_register", "Download updated register (CSV)")
   )
 )
 
@@ -221,6 +231,41 @@ server <- function(input, output, session) {
     },
     content = function(file) {
       write.csv(snapshot(), file, row.names = FALSE)
+    }
+  )
+
+  # Upsert this scenario's row into an uploaded register CSV, keyed on Month.
+  register_merge <- reactive({
+    new_row <- snapshot()
+    upload <- input$register_upload
+    if (is.null(upload)) {
+      return(list(data = new_row, status = "No register uploaded — downloading a new one-row register."))
+    }
+    existing <- tryCatch(
+      read.csv(upload$datapath, stringsAsFactors = FALSE, check.names = FALSE),
+      error = function(e) NULL
+    )
+    if (is.null(existing) || !setequal(names(existing), names(new_row))) {
+      return(list(
+        data = new_row,
+        status = "Uploaded file's columns don't match this snapshot's format — downloading this scenario alone instead of merging."
+      ))
+    }
+    existing <- existing[, names(new_row), drop = FALSE]
+    is_same_month <- existing$Month == new_row$Month
+    merged <- rbind(existing[!is_same_month, , drop = FALSE], new_row)
+    action <- if (any(is_same_month)) "Replaced" else "Appended"
+    list(data = merged, status = paste0(action, " the row for ", new_row$Month, ". Register now has ", nrow(merged), " row(s)."))
+  })
+
+  output$register_status <- renderText(register_merge()$status)
+
+  output$download_register <- downloadHandler(
+    filename = function() {
+      if (!is.null(input$register_upload)) input$register_upload$name else "payroll_register.csv"
+    },
+    content = function(file) {
+      write.csv(register_merge()$data, file, row.names = FALSE)
     }
   )
 }
