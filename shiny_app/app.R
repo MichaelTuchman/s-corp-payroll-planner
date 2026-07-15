@@ -110,11 +110,9 @@ ui <- page_sidebar(
   ),
 
   div(
-    class = "alert alert-warning",
-    style = "color: red;",
-    strong("DISCLAIMER: "), "Use for planning purposes only. Tax and payroll filing should be performed only by a professional.",
-    br(),
-    "One S corporation. One W-2 employee, who is also the owner. One payroll scenario at a time. Not payroll processing or tax-return preparation."
+    class = "alert alert-light border",
+    div(style = "color: firebrick;", strong("DISCLAIMER: "), "Use for planning purposes only. Tax and payroll filing should be performed only by a professional."),
+    div(style = "color: #212529;", "One S corporation. One W-2 employee, who is also the owner. One payroll scenario at a time. Not payroll processing or tax-return preparation.")
   ),
 
   layout_columns(
