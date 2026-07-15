@@ -71,7 +71,7 @@ ui <- page_sidebar(
         dateInput("planning_month", "Planning month", value = "2026-07-01"),
         numericInput("billable_hours", "Planned billable hours", value = 157, min = 0),
         numericInput("billing_rate", "Billing rate ($/hour)", value = 100, min = 0),
-        sliderInput("wage_rate", "Wage rate ($/hour) — slide to see the Cash Health Status change", value = 50, min = 0, max = 500, step = 1),
+        sliderInput("wage_rate", "Wage rate ($/hour) — slide to see the Cash Health Status change", value = 50, min = 0, max = 120, step = 1),
         numericInput("client_receipts", "Expected client receipts ($)", value = 15700, min = 0),
         numericInput("beginning_cash", "Beginning LLC cash ($)", value = 0),
         numericInput("other_opex", "Other operating expenses ($)", value = 0, min = 0),
@@ -193,6 +193,16 @@ server <- function(input, output, session) {
     ranges[n] <- paste(pct(t$threshold[n]), "or more")
     data.frame("Available Cash Margin" = ranges, "Status" = t$status, check.names = FALSE)
   }, striped = TRUE, bordered = TRUE, colnames = TRUE)
+
+  # Wage rate has no reason to exceed billing rate by much, so keep the
+  # slider's top end tied to it (with a little headroom) instead of a fixed
+  # ceiling that leaves most of the track unused for realistic values.
+  observeEvent(input$billing_rate, {
+    req(!is.na(input$billing_rate))
+    new_max <- max(1, round(input$billing_rate * 1.2, 2))
+    new_value <- if (is.na(input$wage_rate) || input$wage_rate > new_max) new_max else input$wage_rate
+    updateSliderInput(session, "wage_rate", max = new_max, value = new_value)
+  })
 
   inputs <- reactive({
     list(
