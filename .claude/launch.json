@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "shiny-planner",
+      "runtimeExecutable": "C:\\Program Files\\R\\R-4.6.0\\bin\\Rscript.exe",
+      "runtimeArgs": ["-e", "shiny::runApp('C:/Users/mftuc/OneDrive/Documents/s-corp-payroll-planner/shiny_app', host='127.0.0.1', port=7645)"],
+      "port": 7645
+    }
+  ]
+}
