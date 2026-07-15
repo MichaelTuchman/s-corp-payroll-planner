@@ -210,7 +210,11 @@ glossary <- data.frame(
   stringsAsFactors = FALSE
 )
 
-# Builds the 41-column horizontal snapshot row (mirrors row 87 of the workbook).
+# Builds the horizontal snapshot row, extended from row 87 of the workbook
+# with the Federal/State/Local tax rates in effect for the scenario (stored
+# as raw decimals, matching Available Cash Margin's convention) since those
+# are user-editable and worth keeping as a record even though they change
+# infrequently.
 build_snapshot_row <- function(inputs, tax, results) {
   data.frame(
     "Notes" = inputs$notes,
@@ -222,11 +226,14 @@ build_snapshot_row <- function(inputs, tax, results) {
     "Expected Client Receipts ($)" = inputs$client_receipts,
     "Beginning LLC Cash ($)" = inputs$beginning_cash,
     "Gross Wages ($)" = results$gross_wages,
+    "Federal Withholding Rate" = tax$fed_wh_rate,
     "Federal Withholding ($)" = results$fed_withholding,
     "Employee Social Security ($)" = results$ee_ss,
     "Employee Medicare ($)" = results$ee_medicare,
     "Additional Medicare ($)" = results$add_medicare,
+    "State Income Tax Rate" = tax$state_income_tax_rate,
     "State Income Tax ($)" = results$state_income_tax,
+    "Local Tax Rate" = tax$local_tax_rate,
     "Local Tax ($)" = results$local_tax,
     "Employee State UI ($)" = results$ee_sui,
     "Employee Leave / Disability ($)" = results$ee_leave,
