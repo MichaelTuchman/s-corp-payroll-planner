@@ -62,6 +62,12 @@ ui <- page_sidebar(
   title = paste("Solo S-Corp Payroll & Cash Planner —", app_version),
   theme = bs_theme(version = 5, bootswatch = "flatly"),
 
+  tags$style(HTML("
+    .sidebar .accordion-button, .sidebar .accordion-button:not(.collapsed), .sidebar .accordion-body {
+      background-color: #e3f2fd;
+    }
+  ")),
+
   sidebar = sidebar(
     width = 380,
     accordion(
