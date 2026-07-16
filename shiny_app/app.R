@@ -104,6 +104,10 @@ ui <- page_sidebar(
       open = "Inputs",
       accordion_panel(
         "Inputs", icon = bsicons::bs_icon("pencil-square"),
+        div(
+          actionButton("reset_inputs", "Reset inputs", icon = bsicons::bs_icon("arrow-counterclockwise"), class = "btn-outline-secondary btn-sm"),
+          style = "margin-bottom: 12px;"
+        ),
         textInput("scenario_name", "Scenario name", value = "July planning scenario"),
         dateInput("planning_month", "Planning month", value = "2026-07-01"),
         numericInput("billable_hours", "Planned billable hours", value = 157, min = 0),
@@ -269,6 +273,32 @@ server <- function(input, output, session) {
     new_max <- max(0, round(input$billing_rate, 2))
     new_value <- if (is.na(input$wage_rate) || input$wage_rate > new_max) new_max else input$wage_rate
     updateSliderInput(session, "wage_rate", max = new_max, value = new_value)
+  })
+
+  # "Reset inputs" only touches the Inputs panel, never Default Tax Rates and
+  # Limits. Billing rate is deliberately left alone (last time is a good
+  # point of departure); wage rate resets relative to whatever billing rate
+  # currently is, not a fixed number.
+  observeEvent(input$reset_inputs, {
+    updateTextInput(session, "scenario_name", value = "")
+    updateDateInput(session, "planning_month", value = NA)
+    updateNumericInput(session, "billable_hours", value = 160)
+    billing_rate <- if (is.na(input$billing_rate)) 0 else input$billing_rate
+    updateSliderInput(session, "wage_rate", value = round(billing_rate * 0.6, 2))
+    updateNumericInput(session, "additional_receipts", value = 0)
+    updateNumericInput(session, "beginning_cash", value = 0)
+    updateNumericInput(session, "other_opex", value = 0)
+    updateNumericInput(session, "payroll_fees", value = 0)
+    updateNumericInput(session, "min_cash_reserve", value = 0)
+    updateNumericInput(session, "ytd_wages", value = 0)
+    updateSelectInput(session, "retirement_plan_type", selected = "None")
+    updateSliderInput(session, "sep_rate", value = 0)
+    updateNumericInput(session, "ytd_sep", value = 0)
+    updateSliderInput(session, "solo401k_employer_rate", value = 0)
+    updateNumericInput(session, "solo401k_deferral_election", value = 0)
+    updateCheckboxInput(session, "solo401k_catchup_eligible", value = FALSE)
+    updateNumericInput(session, "ytd_solo401k_deferral", value = 0)
+    updateNumericInput(session, "ytd_solo401k_employer", value = 0)
   })
 
   inputs <- reactive({
