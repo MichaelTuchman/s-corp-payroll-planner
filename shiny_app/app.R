@@ -22,6 +22,12 @@ status_theme <- function(status) {
 money <- function(x) dollar(x, accuracy = 0.01)
 pct <- function(x) percent(x, accuracy = 0.01)
 
+# First day of the month the app is opened — the most reasonable default
+# planning month, used both for the initial value and the Reset button.
+first_of_current_month <- function() {
+  as.Date(format(Sys.Date(), "%Y-%m-01"))
+}
+
 # Every numeric input feeds the calculation chain; a blank (NA) value in any
 # of them propagates to an NA index in the health-status lookup, where
 # if (idx < 1) throws "missing value where TRUE/FALSE needed" and Shiny
@@ -118,7 +124,7 @@ ui <- page_sidebar(
           style = "margin-bottom: 12px;"
         ),
         textInput("scenario_name", "Scenario name", value = "July planning scenario"),
-        dateInput("planning_month", "Planning month", value = "2026-07-01"),
+        dateInput("planning_month", "Planning month", value = first_of_current_month()),
         numericInput("billable_hours", "Planned billable hours", value = 157, min = 0),
         numericInput("billing_rate", "Billing rate ($/hour)", value = 100, min = 0),
         sliderInput("wage_rate", "Wage rate ($/hour) — cannot exceed billing rate; slide to see the Cash Health Status change", value = 50, min = 0, max = 100, step = 1),
@@ -306,7 +312,7 @@ server <- function(input, output, session) {
   # currently is, not a fixed number.
   observeEvent(input$reset_inputs, {
     updateTextInput(session, "scenario_name", value = "")
-    updateDateInput(session, "planning_month", value = character(0))
+    updateDateInput(session, "planning_month", value = first_of_current_month())
     updateNumericInput(session, "billable_hours", value = 160)
     billing_rate <- if (is.na(input$billing_rate)) 0 else input$billing_rate
     updateSliderInput(session, "wage_rate", value = round(billing_rate * 0.6, 2))
