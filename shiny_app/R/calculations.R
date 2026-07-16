@@ -63,7 +63,11 @@ calculate_planner <- function(inputs, tax) {
 
   taxable_wages <- gross_wages - solo401k_employee_deferral
 
-  fed_withholding <- taxable_wages * tax$fed_wh_rate
+  # Voluntary additional federal withholding (Form W-4 Step 4(c)) is a flat
+  # amount added on top of the standard calculation -- unlike the Solo
+  # 401(k) deferral, it doesn't reduce taxable wages, since it's withholding
+  # itself, not a pre-tax election.
+  fed_withholding <- taxable_wages * tax$fed_wh_rate + inputs$additional_fed_withholding
   ee_ss <- ss_taxable * tax$ee_ss_rate
   ee_medicare <- gross_wages * tax$ee_medicare_rate
   add_medicare <- max(0, inputs$ytd_wages + gross_wages - tax$add_medicare_threshold) * tax$add_medicare_rate -
@@ -155,6 +159,7 @@ glossary <- data.frame(
     "Planning month", "Planned billable hours", "Billing rate", "Wage rate",
     "Additional receipts", "Expected client receipts", "Beginning LLC cash", "Other operating expenses",
     "Payroll service fees", "Minimum operating cash reserve", "YTD wages before this payroll",
+    "Voluntary additional federal withholding",
     "Retirement plan", "SEP contribution rate", "YTD SEP contributions before this payroll",
     "Solo 401(k) employer profit-sharing rate", "Employee elective deferral this payroll",
     "Age 50+ catch-up eligible", "YTD Solo 401(k) employee deferrals", "YTD Solo 401(k) employer contributions",
@@ -187,6 +192,7 @@ glossary <- data.frame(
     "Reduces available cash.",
     "Protects the business from running too close.",
     "Applies annual wage bases and thresholds.",
+    "A flat amount withheld beyond the standard rate calculation, at the employee's election (Form W-4 Step 4(c)). Added directly to federal withholding, unlike a pre-tax deferral.",
     "Choose SEP-IRA or Solo 401(k) — mutually exclusive; only one plan's inputs apply per scenario.",
     "Creates a retirement reserve.",
     "Applies the annual SEP contribution limit.",
@@ -248,7 +254,7 @@ glossary <- data.frame(
   "Source Info" = c(
     "User input", "User input", "Client contract", "Owner compensation policy",
     "User input", "Calculated", "Bank balance", "User input", "User input", "Owner policy",
-    "Payroll records", "User input", "Owner policy", "Retirement records",
+    "Payroll records", "User input", "User input", "Owner policy", "Retirement records",
     "Owner policy", "User input", "User input", "Retirement records", "Retirement records",
     "User input",
     "Replace with accountant's actual withholding when available.",
@@ -290,6 +296,7 @@ build_snapshot_row <- function(inputs, tax, results) {
     "Beginning LLC Cash ($)" = inputs$beginning_cash,
     "Gross Wages ($)" = results$gross_wages,
     "Federal Withholding Rate" = tax$fed_wh_rate,
+    "Voluntary Additional Federal Withholding ($)" = inputs$additional_fed_withholding,
     "Federal Withholding ($)" = results$fed_withholding,
     "Employee Social Security ($)" = results$ee_ss,
     "Employee Medicare ($)" = results$ee_medicare,

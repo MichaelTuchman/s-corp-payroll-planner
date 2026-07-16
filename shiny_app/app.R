@@ -36,6 +36,7 @@ numeric_field_labels <- c(
   payroll_fees = "Payroll Service Fees",
   min_cash_reserve = "Minimum Operating Cash Reserve",
   ytd_wages = "YTD Wages Before This Payroll",
+  additional_fed_withholding = "Voluntary Additional Federal Withholding",
   fed_wh_rate = "Federal Withholding Planning Rate",
   ee_ss_rate = "Employee Social Security Rate",
   er_ss_rate = "Employer Social Security Rate",
@@ -120,6 +121,7 @@ ui <- page_sidebar(
         numericInput("payroll_fees", "Payroll service fees ($)", value = 0, min = 0),
         numericInput("min_cash_reserve", "Minimum operating cash reserve ($)", value = 0, min = 0),
         numericInput("ytd_wages", "YTD wages before this payroll ($)", value = 0, min = 0),
+        numericInput("additional_fed_withholding", "Voluntary additional federal withholding ($) (flat amount, beyond the standard rate calculation — Form W-4 Step 4(c))", value = 0, min = 0),
         selectInput("retirement_plan_type", "Retirement plan", choices = c("None", "SEP-IRA", "Solo 401(k)"), selected = "None"),
         conditionalPanel(
           condition = "input.retirement_plan_type == 'SEP-IRA'",
@@ -291,6 +293,7 @@ server <- function(input, output, session) {
     updateNumericInput(session, "payroll_fees", value = 0)
     updateNumericInput(session, "min_cash_reserve", value = 0)
     updateNumericInput(session, "ytd_wages", value = 0)
+    updateNumericInput(session, "additional_fed_withholding", value = 0)
     updateSelectInput(session, "retirement_plan_type", selected = "None")
     updateSliderInput(session, "sep_rate", value = 0)
     updateNumericInput(session, "ytd_sep", value = 0)
@@ -313,6 +316,7 @@ server <- function(input, output, session) {
       payroll_fees = input$payroll_fees,
       min_cash_reserve = input$min_cash_reserve,
       ytd_wages = input$ytd_wages,
+      additional_fed_withholding = input$additional_fed_withholding,
       retirement_plan_type = input$retirement_plan_type,
       sep_rate = input$sep_rate / 100,
       ytd_sep = input$ytd_sep,
