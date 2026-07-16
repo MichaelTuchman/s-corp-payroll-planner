@@ -26,14 +26,24 @@ calculate_planner <- function(inputs, tax) {
   sui_taxable <- min(gross_wages, max(0, tax$sui_wage_base - inputs$ytd_wages))
   futa_taxable <- min(gross_wages, max(0, tax$futa_wage_base - inputs$ytd_wages))
 
-  # Retirement plan: SEP-IRA and Solo 401(k) are mutually exclusive per
-  # scenario. SEP is employer-only. Solo 401(k) has an employee elective
-  # deferral (pre-tax: reduces federal/state/local taxable wages below, but
-  # not FICA wages, which stay on full gross_wages) plus an employer
-  # profit-share contribution, each with its own limit, and a combined
-  # limit across both (raised by the age-50+ catch-up on both sides).
+  # Retirement plan: SEP-IRA, Solo 401(k), and SIMPLE IRA are mutually
+  # exclusive per scenario (matches real law -- an employer generally can't
+  # run a SIMPLE IRA alongside another qualified plan in the same year
+  # either). SEP is employer-only. Solo 401(k) and SIMPLE IRA both have an
+  # employee elective deferral (pre-tax: reduces federal/state/local taxable
+  # wages below, but not FICA wages, which stay on full gross_wages).
+  #
+  # Solo 401(k)'s employer side is a freely-chosen profit-share rate capped
+  # by an overall combined limit (raised by age-50+ catch-up). SIMPLE IRA's
+  # employer side is NOT a free rate -- the law only allows one of two
+  # formulas per year: a dollar-for-dollar match up to a fixed rate (capped
+  # by what the employee actually deferred, not a free percentage), or a
+  # flat nonelective rate paid regardless of the employee's own deferral.
+  # SIMPLE has no equivalent combined-limit ceiling the way 401(k) does --
+  # the employer side is inherently small by formula.
   is_sep <- identical(inputs$retirement_plan_type, "SEP-IRA")
   is_solo401k <- identical(inputs$retirement_plan_type, "Solo 401(k)")
+  is_simple <- identical(inputs$retirement_plan_type, "SIMPLE IRA")
 
   sep_contribution <- if (is_sep) {
     min(gross_wages * inputs$sep_rate, max(0, tax$sep_annual_limit - inputs$ytd_sep))
@@ -61,7 +71,22 @@ calculate_planner <- function(inputs, tax) {
     solo401k_employer_contribution <- 0
   }
 
-  taxable_wages <- gross_wages - solo401k_employee_deferral
+  simple_catchup <- if (isTRUE(inputs$simple_catchup_eligible)) tax$simple_catchup_limit else 0
+  simple_deferral_room <- max(0, tax$simple_deferral_limit + simple_catchup - inputs$ytd_simple_deferral)
+
+  if (is_simple) {
+    simple_employee_deferral <- min(inputs$simple_deferral_election, simple_deferral_room)
+    simple_employer_contribution <- if (identical(inputs$simple_employer_formula, "3% Match")) {
+      min(simple_employee_deferral, gross_wages * tax$simple_match_rate)
+    } else {
+      gross_wages * tax$simple_nonelective_rate
+    }
+  } else {
+    simple_employee_deferral <- 0
+    simple_employer_contribution <- 0
+  }
+
+  taxable_wages <- gross_wages - solo401k_employee_deferral - simple_employee_deferral
 
   # Voluntary additional federal withholding (Form W-4 Step 4(c)) is a flat
   # amount added on top of the standard calculation -- unlike the Solo
@@ -79,7 +104,7 @@ calculate_planner <- function(inputs, tax) {
 
   total_ee_withholding <- fed_withholding + ee_ss + ee_medicare + add_medicare +
     state_income_tax + local_tax + ee_sui + ee_leave
-  net_paycheck <- gross_wages - total_ee_withholding - solo401k_employee_deferral
+  net_paycheck <- gross_wages - total_ee_withholding - solo401k_employee_deferral - simple_employee_deferral
 
   er_ss <- ss_taxable * tax$er_ss_rate
   er_medicare <- gross_wages * tax$er_medicare_rate
@@ -97,9 +122,11 @@ calculate_planner <- function(inputs, tax) {
   futa_reserve <- futa
   sep_reserve <- sep_contribution
   solo401k_reserve <- solo401k_employee_deferral + solo401k_employer_contribution
+  simple_reserve <- simple_employee_deferral + simple_employer_contribution
 
   total_payroll_cash_requirement <- net_paycheck + federal_deposit + state_wh_deposit +
-    local_deposit + sui_deposit + leave_deposit + other_state_deposit + futa_reserve + sep_reserve + solo401k_reserve
+    local_deposit + sui_deposit + leave_deposit + other_state_deposit + futa_reserve + sep_reserve +
+    solo401k_reserve + simple_reserve
 
   cash_after_obligations <- inputs$beginning_cash + client_receipts -
     total_payroll_cash_requirement - inputs$other_opex - inputs$payroll_fees
@@ -136,6 +163,10 @@ calculate_planner <- function(inputs, tax) {
     solo401k_employer_contribution = solo401k_employer_contribution,
     solo401k_deferral_room = solo401k_deferral_room,
     solo401k_employer_room = solo401k_employer_room,
+    simple_employee_deferral = simple_employee_deferral,
+    simple_employer_contribution = simple_employer_contribution,
+    simple_deferral_room = simple_deferral_room,
+    simple_reserve = simple_reserve,
     federal_deposit = federal_deposit,
     state_wh_deposit = state_wh_deposit,
     local_deposit = local_deposit,
@@ -167,8 +198,10 @@ glossary <- data.frame(
     "Payroll service fees", "Minimum operating cash reserve", "YTD wages before this payroll",
     "Voluntary additional federal withholding",
     "Retirement plan", "SEP contribution rate", "YTD SEP contributions before this payroll",
-    "Solo 401(k) employer profit-sharing rate", "Employee elective deferral this payroll",
-    "Age 50+ catch-up eligible", "YTD Solo 401(k) employee deferrals", "YTD Solo 401(k) employer contributions",
+    "Solo 401(k) employer profit-sharing rate", "Employee elective deferral this payroll (Solo 401(k))",
+    "Age 50+ catch-up eligible (Solo 401(k))", "YTD Solo 401(k) employee deferrals", "YTD Solo 401(k) employer contributions",
+    "SIMPLE IRA employer contribution formula", "Employee elective deferral this payroll (SIMPLE IRA)",
+    "Age 50+ catch-up eligible (SIMPLE IRA)", "YTD SIMPLE IRA employee deferrals",
     "Scenario name",
     "Federal withholding planning rate", "Employee Social Security rate", "Employer Social Security rate",
     "Social Security wage base", "Employee Medicare rate", "Employer Medicare rate",
@@ -177,13 +210,17 @@ glossary <- data.frame(
     "State unemployment wage base", "Employee leave / disability rate", "Employer leave / disability rate",
     "Other state payroll-tax rate", "FUTA rate", "FUTA wage base",
     "SEP annual contribution limit", "Solo 401(k) employee deferral limit", "Solo 401(k) catch-up limit",
-    "Solo 401(k) combined contribution limit", "Expected billed revenue",
+    "Solo 401(k) combined contribution limit", "SIMPLE IRA employee deferral limit", "SIMPLE IRA catch-up limit",
+    "SIMPLE IRA employer match rate", "SIMPLE IRA employer nonelective rate",
+    "Expected billed revenue",
     "Gross W-2 wages", "Federal income tax withheld", "Employee Social Security", "Employee Medicare",
     "Additional Medicare", "State income tax", "Local income / occupational tax",
     "Employee state unemployment", "Employee leave / disability", "Total employee withholding",
-    "Solo 401(k) employee elective deferral", "Net employee paycheck", "Employer Social Security", "Employer Medicare",
+    "Solo 401(k) employee elective deferral", "SIMPLE IRA employee elective deferral",
+    "Net employee paycheck", "Employer Social Security", "Employer Medicare",
     "Employer state unemployment", "Employer leave / disability", "Other state payroll tax",
-    "FUTA", "SEP contribution", "Solo 401(k) employer contribution", "Total payroll cash requirement",
+    "FUTA", "SEP contribution", "Solo 401(k) employer contribution", "SIMPLE IRA employer contribution",
+    "Total payroll cash requirement",
     "Cash after all obligations", "Available cash", "Available cash margin", "Cash Health Status",
     "Total payroll cash requirement / gross wages", "Net pay / gross pay"
   ),
@@ -200,7 +237,7 @@ glossary <- data.frame(
     "Protects the business from running too close.",
     "Applies annual wage bases and thresholds.",
     "A flat amount withheld beyond the standard rate calculation, at the employee's election (Form W-4 Step 4(c)). Added directly to federal withholding, unlike a pre-tax deferral.",
-    "Choose SEP-IRA or Solo 401(k) — mutually exclusive; only one plan's inputs apply per scenario.",
+    "Choose SEP-IRA, Solo 401(k), or SIMPLE IRA — mutually exclusive; only one plan's inputs apply per scenario (matches real law: an employer generally can't run a SIMPLE IRA alongside another qualified plan the same year either).",
     "Creates a retirement reserve.",
     "Applies the annual SEP contribution limit.",
     "Employer-only contribution, same mechanic as SEP's rate.",
@@ -208,6 +245,10 @@ glossary <- data.frame(
     "Raises both the employee deferral limit and the combined limit by the catch-up amount.",
     "Applies the annual employee deferral limit (plus catch-up if eligible).",
     "Applies the combined employee + employer limit.",
+    "The law only allows one of two employer formulas per year: a dollar-for-dollar match (capped by the match rate), or a flat nonelective rate paid regardless of what the employee defers.",
+    "Comes out of the paycheck itself; pre-tax, so it reduces federal/state/local taxable wages but not FICA wages. Subject to SIMPLE IRA's own (lower) deferral limit, not the Solo 401(k) limit.",
+    "Raises the SIMPLE IRA employee deferral limit by the catch-up amount.",
+    "Applies the SIMPLE IRA annual employee deferral limit (plus catch-up if eligible).",
     "Identifies this scenario at a glance — shown first in the snapshot table, a better label than the month alone.",
     "Estimates federal income-tax withholding.",
     "Employee OASDI withholding.",
@@ -231,6 +272,10 @@ glossary <- data.frame(
     "Caps the employee elective-deferral bucket, before any catch-up.",
     "Additional amount allowed for the employee deferral (and the combined limit) if age 50+.",
     "Caps employee deferral + employer contribution together (Section 415(c)).",
+    "Caps the SIMPLE IRA employee elective-deferral bucket, before any catch-up. Lower than the Solo 401(k) limit.",
+    "Additional amount allowed for the SIMPLE IRA employee deferral if age 50+.",
+    "Employer match rate under the \"3% Match\" formula — dollar-for-dollar up to this rate, capped by what the employee actually deferred.",
+    "Flat employer contribution rate under the \"2% Nonelective\" formula, paid to the employee regardless of their own deferral.",
     "Billable hours × billing rate.",
     "Billable hours × wage rate.",
     "Gross wages × federal planning rate.",
@@ -243,7 +288,8 @@ glossary <- data.frame(
     "Gross wages × employee rate.",
     "Sum of employee withholding.",
     "The elected deferral, capped by the deferral limit (plus catch-up if eligible) and by remaining room under the combined limit.",
-    "Gross wages − employee withholding − any Solo 401(k) employee deferral.",
+    "The elected deferral, capped by the SIMPLE IRA deferral limit (plus catch-up if eligible).",
+    "Gross wages − employee withholding − any Solo 401(k) or SIMPLE IRA employee deferral.",
     "Subject to annual wage base.",
     "Gross wages × Medicare rate.",
     "Subject to state wage base.",
@@ -252,7 +298,8 @@ glossary <- data.frame(
     "Subject to FUTA wage base.",
     "Gross wages × SEP rate, capped annually.",
     "Gross wages × employer profit-sharing rate, capped by remaining room under the combined limit.",
-    "Net paycheck + all deposits + SEP + Solo 401(k) contributions.",
+    "Match formula: dollar-for-dollar match of the employee deferral, up to the match rate. Nonelective formula: flat rate × gross wages, regardless of the employee's own deferral.",
+    "Net paycheck + all deposits + SEP + Solo 401(k) + SIMPLE IRA contributions.",
     "Beginning cash + receipts − obligations − expenses.",
     "Cash after obligations − minimum reserve.",
     "Available cash ÷ client receipts.",
@@ -265,6 +312,7 @@ glossary <- data.frame(
     "User input", "Calculated", "Bank balance", "User input", "User input", "Owner policy",
     "Payroll records", "User input", "User input", "Owner policy", "Retirement records",
     "Owner policy", "User input", "User input", "Retirement records", "Retirement records",
+    "User input", "User input", "User input", "Retirement records",
     "User input",
     "Replace with accountant's actual withholding when available.",
     "IRS Publication 15", "IRS Publication 15", "SSA annual wage base",
@@ -275,12 +323,14 @@ glossary <- data.frame(
     "Enter zero if none applies.", "Enter zero if none applies.",
     "Assumes full state credit.", "IRS Topic 759", "IRS annual limit",
     "IRS annual limit", "IRS annual limit", "IRS annual limit",
+    "IRS annual limit", "IRS annual limit", "IRS Publication 15", "IRS Publication 15",
     "Calculated", "Calculated", "Calculated", "Calculated",
     "Calculated", "Calculated", "Calculated", "Calculated", "Calculated",
     "Calculated", "Calculated", "Calculated", "Calculated", "Calculated",
     "Calculated", "Calculated", "Calculated", "Calculated", "Calculated",
     "Calculated", "Calculated", "Calculated", "Calculated", "Calculated",
-    "Calculated", "Calculated", "Calculated", "Calculated"
+    "Calculated", "Calculated", "Calculated", "Calculated", "Calculated",
+    "Calculated"
   ),
   check.names = FALSE,
   stringsAsFactors = FALSE
@@ -295,7 +345,7 @@ build_snapshot_row <- function(inputs, tax, results) {
   data.frame(
     "Scenario Name" = inputs$scenario_name,
     "Retirement Plan" = inputs$retirement_plan_type,
-    "Month" = format(inputs$planning_month, "%Y-%m"),
+    "Month" = if (length(inputs$planning_month) == 0 || is.na(inputs$planning_month)) "" else format(inputs$planning_month, "%Y-%m"),
     "Planned Billable Hours" = inputs$billable_hours,
     "Billing Rate ($/hr)" = inputs$billing_rate,
     "Wage Rate ($/hr)" = inputs$wage_rate,
@@ -318,6 +368,7 @@ build_snapshot_row <- function(inputs, tax, results) {
     "Employee Leave / Disability ($)" = results$ee_leave,
     "Total Employee Withholding ($)" = results$total_ee_withholding,
     "Solo 401(k) Employee Deferral ($)" = results$solo401k_employee_deferral,
+    "SIMPLE IRA Employee Deferral ($)" = results$simple_employee_deferral,
     "Net Paycheck ($)" = results$net_paycheck,
     "Employer Social Security ($)" = results$er_ss,
     "Employer Medicare ($)" = results$er_medicare,
@@ -327,6 +378,8 @@ build_snapshot_row <- function(inputs, tax, results) {
     "FUTA ($)" = results$futa,
     "SEP Contribution ($)" = results$sep_contribution,
     "Solo 401(k) Employer Contribution ($)" = results$solo401k_employer_contribution,
+    "SIMPLE IRA Employer Formula" = inputs$simple_employer_formula,
+    "SIMPLE IRA Employer Contribution ($)" = results$simple_employer_contribution,
     "Federal Payroll Tax Deposit ($)" = results$federal_deposit,
     "State Withholding Deposit ($)" = results$state_wh_deposit,
     "Local Tax Deposit ($)" = results$local_deposit,
@@ -336,6 +389,7 @@ build_snapshot_row <- function(inputs, tax, results) {
     "FUTA Reserve ($)" = results$futa_reserve,
     "SEP Reserve ($)" = results$sep_reserve,
     "Solo 401(k) Reserve ($)" = results$solo401k_reserve,
+    "SIMPLE IRA Reserve ($)" = results$simple_reserve,
     "Total Payroll Cash Requirement ($)" = results$total_payroll_cash_requirement,
     "Other Operating Expenses ($)" = inputs$other_opex,
     "Payroll Service Fees ($)" = inputs$payroll_fees,

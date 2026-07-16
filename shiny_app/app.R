@@ -73,6 +73,14 @@ solo401k_field_labels <- c(
   solo401k_catchup_limit = "Solo 401(k) Catch-Up Limit",
   solo401k_combined_limit = "Solo 401(k) Combined Contribution Limit"
 )
+simple_field_labels <- c(
+  simple_deferral_election = "SIMPLE IRA Employee Elective Deferral",
+  ytd_simple_deferral = "YTD SIMPLE IRA Employee Deferrals",
+  simple_deferral_limit = "SIMPLE IRA Employee Deferral Limit",
+  simple_catchup_limit = "SIMPLE IRA Catch-Up Limit",
+  simple_match_rate = "SIMPLE IRA Employer Match Rate",
+  simple_nonelective_rate = "SIMPLE IRA Employer Nonelective Rate"
+)
 
 ui <- page_sidebar(
   title = paste("Solo S-Corp Payroll & Cash Planner — Version", app_version),
@@ -122,7 +130,7 @@ ui <- page_sidebar(
         numericInput("min_cash_reserve", "Minimum operating cash reserve ($)", value = 0, min = 0),
         numericInput("ytd_wages", "YTD wages before this payroll ($)", value = 0, min = 0),
         numericInput("additional_fed_withholding", "Voluntary additional federal withholding ($) (flat amount, beyond the standard rate calculation — Form W-4 Step 4(c))", value = 0, min = 0),
-        selectInput("retirement_plan_type", "Retirement plan", choices = c("None", "SEP-IRA", "Solo 401(k)"), selected = "None"),
+        selectInput("retirement_plan_type", "Retirement plan", choices = c("None", "SEP-IRA", "Solo 401(k)", "SIMPLE IRA"), selected = "None"),
         conditionalPanel(
           condition = "input.retirement_plan_type == 'SEP-IRA'",
           sliderInput("sep_rate", "SEP contribution rate (%) (retirement) — slide to see the Cash Health Status change", value = 0, min = 0, max = 25, step = 0.5),
@@ -137,6 +145,14 @@ ui <- page_sidebar(
           uiOutput("solo401k_deferral_room_ui"),
           sliderInput("solo401k_employer_rate", "Solo 401(k) employer profit-sharing rate (%) — slide to see the Cash Health Status change", value = 0, min = 0, max = 25, step = 0.5),
           uiOutput("solo401k_employer_room_ui")
+        ),
+        conditionalPanel(
+          condition = "input.retirement_plan_type == 'SIMPLE IRA'",
+          selectInput("simple_employer_formula", "Employer contribution formula (choose one — the law only allows these two)", choices = c("3% Match", "2% Nonelective"), selected = "3% Match"),
+          checkboxInput("simple_catchup_eligible", "Age 50+ (catch-up eligible)", value = FALSE),
+          numericInput("ytd_simple_deferral", "YTD employee elective deferrals before this payroll ($)", value = 0, min = 0),
+          numericInput("simple_deferral_election", "Employee elective deferral this payroll ($) (pre-tax: reduces federal/state/local taxable wages, not FICA wages)", value = 0, min = 0),
+          uiOutput("simple_deferral_room_ui")
         )
       ),
       accordion_panel(
@@ -168,6 +184,13 @@ ui <- page_sidebar(
           numericInput("solo401k_deferral_limit", "Solo 401(k) employee deferral limit ($ annual)", value = 23500, min = 0),
           numericInput("solo401k_catchup_limit", "Solo 401(k) catch-up limit ($ annual, age 50+)", value = 7500, min = 0),
           numericInput("solo401k_combined_limit", "Solo 401(k) combined employee + employer limit ($ annual)", value = 70000, min = 0)
+        ),
+        conditionalPanel(
+          condition = "input.retirement_plan_type == 'SIMPLE IRA'",
+          numericInput("simple_deferral_limit", "SIMPLE IRA employee deferral limit ($ annual) (placeholder — verify current figure)", value = 16000, min = 0),
+          numericInput("simple_catchup_limit", "SIMPLE IRA catch-up limit ($ annual, age 50+) (placeholder — verify current figure)", value = 3500, min = 0),
+          numericInput("simple_match_rate", "SIMPLE IRA employer match rate (%) (\"3% Match\" formula)", value = 3, min = 0, max = 100, step = 0.5),
+          numericInput("simple_nonelective_rate", "SIMPLE IRA employer nonelective rate (%) (\"2% Nonelective\" formula)", value = 2, min = 0, max = 100, step = 0.5)
         )
       )
     )
@@ -283,7 +306,7 @@ server <- function(input, output, session) {
   # currently is, not a fixed number.
   observeEvent(input$reset_inputs, {
     updateTextInput(session, "scenario_name", value = "")
-    updateDateInput(session, "planning_month", value = NA)
+    updateDateInput(session, "planning_month", value = character(0))
     updateNumericInput(session, "billable_hours", value = 160)
     billing_rate <- if (is.na(input$billing_rate)) 0 else input$billing_rate
     updateSliderInput(session, "wage_rate", value = round(billing_rate * 0.6, 2))
@@ -302,6 +325,10 @@ server <- function(input, output, session) {
     updateCheckboxInput(session, "solo401k_catchup_eligible", value = FALSE)
     updateNumericInput(session, "ytd_solo401k_deferral", value = 0)
     updateNumericInput(session, "ytd_solo401k_employer", value = 0)
+    updateSelectInput(session, "simple_employer_formula", selected = "3% Match")
+    updateNumericInput(session, "simple_deferral_election", value = 0)
+    updateCheckboxInput(session, "simple_catchup_eligible", value = FALSE)
+    updateNumericInput(session, "ytd_simple_deferral", value = 0)
   })
 
   inputs <- reactive({
@@ -325,6 +352,10 @@ server <- function(input, output, session) {
       solo401k_catchup_eligible = input$solo401k_catchup_eligible,
       ytd_solo401k_deferral = input$ytd_solo401k_deferral,
       ytd_solo401k_employer = input$ytd_solo401k_employer,
+      simple_employer_formula = input$simple_employer_formula,
+      simple_deferral_election = input$simple_deferral_election,
+      simple_catchup_eligible = input$simple_catchup_eligible,
+      ytd_simple_deferral = input$ytd_simple_deferral,
       scenario_name = input$scenario_name
     )
   })
@@ -352,7 +383,11 @@ server <- function(input, output, session) {
       sep_annual_limit = input$sep_annual_limit,
       solo401k_deferral_limit = input$solo401k_deferral_limit,
       solo401k_catchup_limit = input$solo401k_catchup_limit,
-      solo401k_combined_limit = input$solo401k_combined_limit
+      solo401k_combined_limit = input$solo401k_combined_limit,
+      simple_deferral_limit = input$simple_deferral_limit,
+      simple_catchup_limit = input$simple_catchup_limit,
+      simple_match_rate = input$simple_match_rate / 100,
+      simple_nonelective_rate = input$simple_nonelective_rate / 100
     )
   })
 
@@ -360,7 +395,8 @@ server <- function(input, output, session) {
     active_field_labels <- c(
       numeric_field_labels,
       if (identical(input$retirement_plan_type, "SEP-IRA")) sep_field_labels,
-      if (identical(input$retirement_plan_type, "Solo 401(k)")) solo401k_field_labels
+      if (identical(input$retirement_plan_type, "Solo 401(k)")) solo401k_field_labels,
+      if (identical(input$retirement_plan_type, "SIMPLE IRA")) simple_field_labels
     )
     for (field_id in names(active_field_labels)) {
       validate(need(!is.na(input[[field_id]]), paste(active_field_labels[[field_id]], "should not be blank")))
@@ -383,6 +419,14 @@ server <- function(input, output, session) {
   output$solo401k_deferral_room_ui <- renderUI({
     room_note(
       results()$solo401k_deferral_room,
+      "Deferral room remaining this year: ",
+      "You've used your full employee deferral room for the year."
+    )
+  })
+
+  output$simple_deferral_room_ui <- renderUI({
+    room_note(
+      results()$simple_deferral_room,
       "Deferral room remaining this year: ",
       "You've used your full employee deferral room for the year."
     )
@@ -427,13 +471,14 @@ server <- function(input, output, session) {
         "Employee Medicare", "Additional Medicare (surtax above threshold)", "State income tax",
         "Local income / occupational tax", "Employee state unemployment",
         "Employee leave / disability", "Total employee withholding",
-        "Solo 401(k) employee elective deferral", "Net employee paycheck"
+        "Solo 401(k) employee elective deferral", "SIMPLE IRA employee elective deferral", "Net employee paycheck"
       ),
       Amount = c(
         money(r$gross_wages), money(r$fed_withholding), money(r$ee_ss),
         money(r$ee_medicare), money(r$add_medicare), money(r$state_income_tax),
         money(r$local_tax), money(r$ee_sui), money(r$ee_leave),
-        money(r$total_ee_withholding), money(r$solo401k_employee_deferral), money(r$net_paycheck)
+        money(r$total_ee_withholding), money(r$solo401k_employee_deferral),
+        money(r$simple_employee_deferral), money(r$net_paycheck)
       )
     )
   }, striped = TRUE, bordered = TRUE, colnames = TRUE)
@@ -445,13 +490,13 @@ server <- function(input, output, session) {
         "Employer Social Security", "Employer Medicare", "Employer state unemployment",
         "Employer leave / disability", "Other state payroll tax (catch-all)",
         "FUTA (federal unemployment tax)", "SEP contribution (retirement)",
-        "Solo 401(k) employer contribution (retirement)",
+        "Solo 401(k) employer contribution (retirement)", "SIMPLE IRA employer contribution (retirement)",
         "Total payroll cash requirement", "Cash after all obligations", "Available cash"
       ),
       Amount = c(
         money(r$er_ss), money(r$er_medicare), money(r$er_sui),
         money(r$er_leave), money(r$other_state_er), money(r$futa), money(r$sep_contribution),
-        money(r$solo401k_employer_contribution),
+        money(r$solo401k_employer_contribution), money(r$simple_employer_contribution),
         money(r$total_payroll_cash_requirement), money(r$cash_after_obligations), money(r$available_cash)
       )
     )
