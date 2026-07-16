@@ -213,6 +213,10 @@ ui <- page_sidebar(
     ),
     textOutput("snapshot_count"),
     div(style = "overflow-x: auto;", tableOutput("snapshot_table")),
+    p(
+      em("Rate columns are rounded to 2 decimal places on screen for readability (e.g. 3.07% shows as 0.03) — the downloaded CSV and clipboard copy both retain full precision (0.0307)."),
+      style = "font-size: 0.85em; color: #495057;"
+    ),
     div(
       downloadButton("download_snapshot", "Download snapshot table (CSV)"),
       actionButton("copy_snapshot", "Copy to clipboard", icon = bsicons::bs_icon("clipboard"), class = "btn-outline-secondary"),
