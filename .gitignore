@@ -12,3 +12,6 @@ Thumbs.db
 # Generated archives
 *.zip
 .Rproj.user
+
+# Shinylive build output (regenerated with shinylive::export)
+shinylive_dist/

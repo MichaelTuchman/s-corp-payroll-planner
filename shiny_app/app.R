@@ -147,7 +147,7 @@ ui <- page_sidebar(
           checkboxInput("solo401k_catchup_eligible", "Age 50+ (catch-up eligible)", value = FALSE),
           numericInput("ytd_solo401k_deferral", "YTD employee elective deferrals before this payroll ($)", value = 0, min = 0),
           numericInput("ytd_solo401k_employer", "YTD Solo 401(k) employer contributions before this payroll ($)", value = 0, min = 0),
-          numericInput("solo401k_deferral_election", "Employee elective deferral this payroll ($) (pre-tax: reduces federal/state/local taxable wages, not FICA wages)", value = 0, min = 0),
+          numericInput("solo401k_deferral_election", "Employee pre-tax deferral this payroll ($)", value = 0, min = 0),
           uiOutput("solo401k_deferral_room_ui"),
           sliderInput("solo401k_employer_rate", "Solo 401(k) employer profit-sharing rate (%) — slide to see the Cash Health Status change", value = 0, min = 0, max = 25, step = 0.5),
           uiOutput("solo401k_employer_room_ui")
@@ -157,7 +157,7 @@ ui <- page_sidebar(
           selectInput("simple_employer_formula", "Employer contribution formula (choose one — the law only allows these two)", choices = c("3% Match", "2% Nonelective"), selected = "3% Match"),
           checkboxInput("simple_catchup_eligible", "Age 50+ (catch-up eligible)", value = FALSE),
           numericInput("ytd_simple_deferral", "YTD employee elective deferrals before this payroll ($)", value = 0, min = 0),
-          numericInput("simple_deferral_election", "Employee elective deferral this payroll ($) (pre-tax: reduces federal/state/local taxable wages, not FICA wages)", value = 0, min = 0),
+          numericInput("simple_deferral_election", "Employee pre-tax deferral this payroll ($)", value = 0, min = 0),
           uiOutput("simple_deferral_room_ui")
         )
       ),
