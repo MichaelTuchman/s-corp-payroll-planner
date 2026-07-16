@@ -36,7 +36,6 @@ numeric_field_labels <- c(
   payroll_fees = "Payroll Service Fees",
   min_cash_reserve = "Minimum Operating Cash Reserve",
   ytd_wages = "YTD Wages Before This Payroll",
-  ytd_sep = "YTD SEP Contributions Before This Payroll",
   fed_wh_rate = "Federal Withholding Planning Rate",
   ee_ss_rate = "Employee Social Security Rate",
   er_ss_rate = "Employer Social Security Rate",
@@ -54,8 +53,24 @@ numeric_field_labels <- c(
   er_leave_rate = "Employer Leave / Disability Rate",
   other_state_er_rate = "Other State Payroll-Tax Rate",
   futa_rate = "FUTA Rate",
-  futa_wage_base = "FUTA Wage Base",
+  futa_wage_base = "FUTA Wage Base"
+)
+
+# Validated only when their retirement plan is actually selected — a field
+# hidden by conditionalPanel() still exists in `input` with whatever value
+# it last had, so validating it unconditionally would block computation
+# over a blank the user can no longer even see.
+sep_field_labels <- c(
+  ytd_sep = "YTD SEP Contributions Before This Payroll",
   sep_annual_limit = "SEP Annual Contribution Limit"
+)
+solo401k_field_labels <- c(
+  solo401k_deferral_election = "Solo 401(k) Employee Elective Deferral",
+  ytd_solo401k_deferral = "YTD Solo 401(k) Employee Deferrals",
+  ytd_solo401k_employer = "YTD Solo 401(k) Employer Contributions",
+  solo401k_deferral_limit = "Solo 401(k) Employee Deferral Limit",
+  solo401k_catchup_limit = "Solo 401(k) Catch-Up Limit",
+  solo401k_combined_limit = "Solo 401(k) Combined Contribution Limit"
 )
 
 ui <- page_sidebar(
@@ -85,9 +100,21 @@ ui <- page_sidebar(
         numericInput("other_opex", "Other operating expenses ($)", value = 0, min = 0),
         numericInput("payroll_fees", "Payroll service fees ($)", value = 0, min = 0),
         numericInput("min_cash_reserve", "Minimum operating cash reserve ($)", value = 0, min = 0),
-        sliderInput("sep_rate", "SEP contribution rate (%) (retirement) — slide to see the Cash Health Status change", value = 0, min = 0, max = 25, step = 0.5),
         numericInput("ytd_wages", "YTD wages before this payroll ($)", value = 0, min = 0),
-        numericInput("ytd_sep", "YTD SEP contributions before this payroll ($)", value = 0, min = 0)
+        selectInput("retirement_plan_type", "Retirement plan", choices = c("None", "SEP-IRA", "Solo 401(k)"), selected = "None"),
+        conditionalPanel(
+          condition = "input.retirement_plan_type == 'SEP-IRA'",
+          sliderInput("sep_rate", "SEP contribution rate (%) (retirement) — slide to see the Cash Health Status change", value = 0, min = 0, max = 25, step = 0.5),
+          numericInput("ytd_sep", "YTD SEP contributions before this payroll ($)", value = 0, min = 0)
+        ),
+        conditionalPanel(
+          condition = "input.retirement_plan_type == 'Solo 401(k)'",
+          sliderInput("solo401k_employer_rate", "Solo 401(k) employer profit-sharing rate (%) — slide to see the Cash Health Status change", value = 0, min = 0, max = 25, step = 0.5),
+          numericInput("solo401k_deferral_election", "Employee elective deferral this payroll ($) (pre-tax: reduces federal/state/local taxable wages, not FICA wages)", value = 0, min = 0),
+          checkboxInput("solo401k_catchup_eligible", "Age 50+ (catch-up eligible)", value = FALSE),
+          numericInput("ytd_solo401k_deferral", "YTD employee elective deferrals before this payroll ($)", value = 0, min = 0),
+          numericInput("ytd_solo401k_employer", "YTD Solo 401(k) employer contributions before this payroll ($)", value = 0, min = 0)
+        )
       ),
       accordion_panel(
         "Default Tax Rates and Limits", icon = bsicons::bs_icon("sliders"),
@@ -109,7 +136,16 @@ ui <- page_sidebar(
         numericInput("other_state_er_rate", "Other state payroll-tax rate (%)", value = 0, min = 0, max = 100, step = 0.01),
         numericInput("futa_rate", "FUTA rate (%) (federal unemployment tax)", value = 0.6, min = 0, max = 100, step = 0.01),
         numericInput("futa_wage_base", "FUTA wage base ($ annual)", value = 7000, min = 0),
-        numericInput("sep_annual_limit", "SEP annual contribution limit ($) (retirement)", value = 72000, min = 0)
+        conditionalPanel(
+          condition = "input.retirement_plan_type == 'SEP-IRA'",
+          numericInput("sep_annual_limit", "SEP annual contribution limit ($) (retirement)", value = 72000, min = 0)
+        ),
+        conditionalPanel(
+          condition = "input.retirement_plan_type == 'Solo 401(k)'",
+          numericInput("solo401k_deferral_limit", "Solo 401(k) employee deferral limit ($ annual)", value = 23500, min = 0),
+          numericInput("solo401k_catchup_limit", "Solo 401(k) catch-up limit ($ annual, age 50+)", value = 7500, min = 0),
+          numericInput("solo401k_combined_limit", "Solo 401(k) combined employee + employer limit ($ annual)", value = 70000, min = 0)
+        )
       )
     )
   ),
@@ -222,9 +258,15 @@ server <- function(input, output, session) {
       other_opex = input$other_opex,
       payroll_fees = input$payroll_fees,
       min_cash_reserve = input$min_cash_reserve,
-      sep_rate = input$sep_rate / 100,
       ytd_wages = input$ytd_wages,
+      retirement_plan_type = input$retirement_plan_type,
+      sep_rate = input$sep_rate / 100,
       ytd_sep = input$ytd_sep,
+      solo401k_employer_rate = input$solo401k_employer_rate / 100,
+      solo401k_deferral_election = input$solo401k_deferral_election,
+      solo401k_catchup_eligible = input$solo401k_catchup_eligible,
+      ytd_solo401k_deferral = input$ytd_solo401k_deferral,
+      ytd_solo401k_employer = input$ytd_solo401k_employer,
       scenario_name = input$scenario_name
     )
   })
@@ -249,13 +291,21 @@ server <- function(input, output, session) {
       other_state_er_rate = input$other_state_er_rate / 100,
       futa_rate = input$futa_rate / 100,
       futa_wage_base = input$futa_wage_base,
-      sep_annual_limit = input$sep_annual_limit
+      sep_annual_limit = input$sep_annual_limit,
+      solo401k_deferral_limit = input$solo401k_deferral_limit,
+      solo401k_catchup_limit = input$solo401k_catchup_limit,
+      solo401k_combined_limit = input$solo401k_combined_limit
     )
   })
 
   results <- reactive({
-    for (field_id in names(numeric_field_labels)) {
-      validate(need(!is.na(input[[field_id]]), paste(numeric_field_labels[[field_id]], "should not be blank")))
+    active_field_labels <- c(
+      numeric_field_labels,
+      if (identical(input$retirement_plan_type, "SEP-IRA")) sep_field_labels,
+      if (identical(input$retirement_plan_type, "Solo 401(k)")) solo401k_field_labels
+    )
+    for (field_id in names(active_field_labels)) {
+      validate(need(!is.na(input[[field_id]]), paste(active_field_labels[[field_id]], "should not be blank")))
     }
     calculate_planner(inputs(), tax())
   })
@@ -281,13 +331,14 @@ server <- function(input, output, session) {
         "Gross W-2 wages", "Federal income tax withheld", "Employee Social Security",
         "Employee Medicare", "Additional Medicare (surtax above threshold)", "State income tax",
         "Local income / occupational tax", "Employee state unemployment",
-        "Employee leave / disability", "Total employee withholding", "Net employee paycheck"
+        "Employee leave / disability", "Total employee withholding",
+        "Solo 401(k) employee elective deferral", "Net employee paycheck"
       ),
       Amount = c(
         money(r$gross_wages), money(r$fed_withholding), money(r$ee_ss),
         money(r$ee_medicare), money(r$add_medicare), money(r$state_income_tax),
         money(r$local_tax), money(r$ee_sui), money(r$ee_leave),
-        money(r$total_ee_withholding), money(r$net_paycheck)
+        money(r$total_ee_withholding), money(r$solo401k_employee_deferral), money(r$net_paycheck)
       )
     )
   }, striped = TRUE, bordered = TRUE, colnames = TRUE)
@@ -299,11 +350,13 @@ server <- function(input, output, session) {
         "Employer Social Security", "Employer Medicare", "Employer state unemployment",
         "Employer leave / disability", "Other state payroll tax (catch-all)",
         "FUTA (federal unemployment tax)", "SEP contribution (retirement)",
+        "Solo 401(k) employer contribution (retirement)",
         "Total payroll cash requirement", "Cash after all obligations", "Available cash"
       ),
       Amount = c(
         money(r$er_ss), money(r$er_medicare), money(r$er_sui),
         money(r$er_leave), money(r$other_state_er), money(r$futa), money(r$sep_contribution),
+        money(r$solo401k_employer_contribution),
         money(r$total_payroll_cash_requirement), money(r$cash_after_obligations), money(r$available_cash)
       )
     )
