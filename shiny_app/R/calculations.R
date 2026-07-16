@@ -107,6 +107,10 @@ calculate_planner <- function(inputs, tax) {
   available_cash_margin <- if (client_receipts == 0) -1 else available_cash / client_receipts
   health_status <- lookup_health_status(available_cash_margin)
 
+  # Personal-interest ratios, not used elsewhere in the app's own logic.
+  cash_requirement_to_gross_ratio <- if (gross_wages == 0) 0 else total_payroll_cash_requirement / gross_wages
+  net_pay_to_gross_ratio <- if (gross_wages == 0) 0 else net_paycheck / gross_wages
+
   list(
     expected_billed_revenue = expected_billed_revenue,
     client_receipts = client_receipts,
@@ -145,7 +149,9 @@ calculate_planner <- function(inputs, tax) {
     cash_after_obligations = cash_after_obligations,
     available_cash = available_cash,
     available_cash_margin = available_cash_margin,
-    health_status = health_status
+    health_status = health_status,
+    cash_requirement_to_gross_ratio = cash_requirement_to_gross_ratio,
+    net_pay_to_gross_ratio = net_pay_to_gross_ratio
   )
 }
 
@@ -178,7 +184,8 @@ glossary <- data.frame(
     "Solo 401(k) employee elective deferral", "Net employee paycheck", "Employer Social Security", "Employer Medicare",
     "Employer state unemployment", "Employer leave / disability", "Other state payroll tax",
     "FUTA", "SEP contribution", "Solo 401(k) employer contribution", "Total payroll cash requirement",
-    "Cash after all obligations", "Available cash", "Available cash margin", "Cash Health Status"
+    "Cash after all obligations", "Available cash", "Available cash margin", "Cash Health Status",
+    "Total payroll cash requirement / gross wages", "Net pay / gross pay"
   ),
   Explanation = c(
     "Labels the scenario and future register row.",
@@ -249,7 +256,9 @@ glossary <- data.frame(
     "Beginning cash + receipts − obligations − expenses.",
     "Cash after obligations − minimum reserve.",
     "Available cash ÷ client receipts.",
-    "Approximate threshold lookup (see the thresholds table above)."
+    "Approximate threshold lookup (see the thresholds table above).",
+    "Total payroll cash requirement ÷ gross wages — a personal-interest ratio, not used elsewhere in the app.",
+    "Net paycheck ÷ gross wages — a personal-interest ratio, not used elsewhere in the app."
   ),
   "Source Info" = c(
     "User input", "User input", "Client contract", "Owner compensation policy",
@@ -271,7 +280,7 @@ glossary <- data.frame(
     "Calculated", "Calculated", "Calculated", "Calculated", "Calculated",
     "Calculated", "Calculated", "Calculated", "Calculated", "Calculated",
     "Calculated", "Calculated", "Calculated", "Calculated", "Calculated",
-    "Calculated", "Calculated"
+    "Calculated", "Calculated", "Calculated", "Calculated"
   ),
   check.names = FALSE,
   stringsAsFactors = FALSE
@@ -335,6 +344,8 @@ build_snapshot_row <- function(inputs, tax, results) {
     "Available Cash ($)" = results$available_cash,
     "Available Cash Margin" = results$available_cash_margin,
     "Cash Health Status" = results$health_status,
+    "Total Payroll Cash Requirement / Gross Wages" = results$cash_requirement_to_gross_ratio,
+    "Net Pay / Gross Pay" = results$net_pay_to_gross_ratio,
     check.names = FALSE
   )
 }
