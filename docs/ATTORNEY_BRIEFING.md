@@ -6,11 +6,13 @@ This document summarizes what the product currently does, how it handles data, a
 
 A web-based calculator that helps a one-owner S corporation (the owner is also the sole W-2 employee) model a single payroll scenario: expected revenue and payroll costs, estimated withholding and employer tax obligations, and how much business cash remains available afterward.
 
-It originated as an Excel workbook and was ported to an interactive R Shiny web app. The calculation logic is unchanged from the original spreadsheet; the app adds live sliders, input validation, and a way to capture several scenarios into one downloadable table.
-
 ## Intended market
 
 Solo S-corp owners directly (freelancers/consultants operating through a one-person S-corp), not accountants or bookkeepers — they already have better-suited professional tools. The owner may show it to their own accountant, but the accountant is not the target customer.
+
+## Your mission :
+
+Provide language and outline how I should position to hold me harmless from liability suits.
 
 ## Product boundary (by design)
 
