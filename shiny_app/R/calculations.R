@@ -41,15 +41,23 @@ calculate_planner <- function(inputs, tax) {
     0
   }
 
+  # Room remaining is computed regardless of which plan is active, so the UI
+  # can show/react to it live even as the user is dialing in a scenario.
+  catchup <- if (isTRUE(inputs$solo401k_catchup_eligible)) tax$solo401k_catchup_limit else 0
+  solo401k_deferral_room <- max(0, tax$solo401k_deferral_limit + catchup - inputs$ytd_solo401k_deferral)
+
   if (is_solo401k) {
-    catchup <- if (isTRUE(inputs$solo401k_catchup_eligible)) tax$solo401k_catchup_limit else 0
-    deferral_room <- max(0, tax$solo401k_deferral_limit + catchup - inputs$ytd_solo401k_deferral)
-    solo401k_employee_deferral <- min(inputs$solo401k_deferral_election, deferral_room)
-    overall_room <- max(0, tax$solo401k_combined_limit + catchup -
-      inputs$ytd_solo401k_deferral - inputs$ytd_solo401k_employer - solo401k_employee_deferral)
-    solo401k_employer_contribution <- min(gross_wages * inputs$solo401k_employer_rate, overall_room)
+    solo401k_employee_deferral <- min(inputs$solo401k_deferral_election, solo401k_deferral_room)
   } else {
     solo401k_employee_deferral <- 0
+  }
+
+  solo401k_employer_room <- max(0, tax$solo401k_combined_limit + catchup -
+    inputs$ytd_solo401k_deferral - inputs$ytd_solo401k_employer - solo401k_employee_deferral)
+
+  if (is_solo401k) {
+    solo401k_employer_contribution <- min(gross_wages * inputs$solo401k_employer_rate, solo401k_employer_room)
+  } else {
     solo401k_employer_contribution <- 0
   }
 
@@ -118,6 +126,8 @@ calculate_planner <- function(inputs, tax) {
     sep_contribution = sep_contribution,
     solo401k_employee_deferral = solo401k_employee_deferral,
     solo401k_employer_contribution = solo401k_employer_contribution,
+    solo401k_deferral_room = solo401k_deferral_room,
+    solo401k_employer_room = solo401k_employer_room,
     federal_deposit = federal_deposit,
     state_wh_deposit = state_wh_deposit,
     local_deposit = local_deposit,

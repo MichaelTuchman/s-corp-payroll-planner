@@ -124,11 +124,13 @@ ui <- page_sidebar(
         ),
         conditionalPanel(
           condition = "input.retirement_plan_type == 'Solo 401(k)'",
-          sliderInput("solo401k_employer_rate", "Solo 401(k) employer profit-sharing rate (%) — slide to see the Cash Health Status change", value = 0, min = 0, max = 25, step = 0.5),
-          numericInput("solo401k_deferral_election", "Employee elective deferral this payroll ($) (pre-tax: reduces federal/state/local taxable wages, not FICA wages)", value = 0, min = 0),
           checkboxInput("solo401k_catchup_eligible", "Age 50+ (catch-up eligible)", value = FALSE),
           numericInput("ytd_solo401k_deferral", "YTD employee elective deferrals before this payroll ($)", value = 0, min = 0),
-          numericInput("ytd_solo401k_employer", "YTD Solo 401(k) employer contributions before this payroll ($)", value = 0, min = 0)
+          numericInput("ytd_solo401k_employer", "YTD Solo 401(k) employer contributions before this payroll ($)", value = 0, min = 0),
+          numericInput("solo401k_deferral_election", "Employee elective deferral this payroll ($) (pre-tax: reduces federal/state/local taxable wages, not FICA wages)", value = 0, min = 0),
+          uiOutput("solo401k_deferral_room_ui"),
+          sliderInput("solo401k_employer_rate", "Solo 401(k) employer profit-sharing rate (%) — slide to see the Cash Health Status change", value = 0, min = 0, max = 25, step = 0.5),
+          uiOutput("solo401k_employer_room_ui")
         )
       ),
       accordion_panel(
@@ -336,6 +338,43 @@ server <- function(input, output, session) {
   output$available_cash_out <- renderText(money(results()$available_cash))
   output$margin_out <- renderText(pct(results()$available_cash_margin))
   output$expected_receipts_preview <- renderText(money(results()$client_receipts))
+
+  room_note <- function(room, label, maxed_out_text) {
+    if (room <= 0) {
+      div(class = "text-danger", style = "font-size: 0.85em; margin-top: -10px; margin-bottom: 15px;", maxed_out_text)
+    } else {
+      div(style = "font-size: 0.85em; color: #495057; margin-top: -10px; margin-bottom: 15px;", label, strong(money(room)))
+    }
+  }
+
+  output$solo401k_deferral_room_ui <- renderUI({
+    room_note(
+      results()$solo401k_deferral_room,
+      "Deferral room remaining this year: ",
+      "You've used your full employee deferral room for the year."
+    )
+  })
+
+  output$solo401k_employer_room_ui <- renderUI({
+    room_note(
+      results()$solo401k_employer_room,
+      "Combined room remaining for the employer contribution: ",
+      "You've used your full Solo 401(k) combined room for the year — no more employer contribution is possible."
+    )
+  })
+
+  # Keeps the employer-rate slider's usable range tied to the actual dollar
+  # room left under the combined limit (as a % of gross wages), so toggling
+  # catch-up or entering YTD amounts visibly changes what's draggable,
+  # instead of only showing up in a results-table number.
+  observe({
+    r <- results()
+    gross <- inputs()$billable_hours * inputs()$wage_rate
+    max_pct <- if (is.na(gross) || gross <= 0) 0 else min(25, round(r$solo401k_employer_room / gross * 100, 2))
+    current <- input$solo401k_employer_rate
+    new_value <- if (is.na(current) || current > max_pct) max_pct else current
+    updateSliderInput(session, "solo401k_employer_rate", max = max_pct, value = new_value)
+  })
 
   output$status_box <- renderUI({
     status <- results()$health_status
