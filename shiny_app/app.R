@@ -130,12 +130,6 @@ ui <- page_sidebar(
         sliderInput("wage_rate", "Wage rate ($/hour) — cannot exceed billing rate; slide to see the Cash Health Status change", value = 50, min = 0, max = 100, step = 1),
         numericInput("additional_receipts", "Additional receipts ($) (beyond rate × hours — e.g. prior-month collections, retainers, advances; can be negative)", value = 0),
         div(style = "margin-top: -10px; margin-bottom: 15px; color: #495057;", "Expected client receipts: ", strong(textOutput("expected_receipts_preview", inline = TRUE))),
-        numericInput("beginning_cash", "Beginning LLC cash ($)", value = 0),
-        numericInput("other_opex", "Other operating expenses ($)", value = 0, min = 0),
-        numericInput("payroll_fees", "Payroll service fees ($)", value = 0, min = 0),
-        numericInput("min_cash_reserve", "Minimum operating cash reserve ($)", value = 0, min = 0),
-        numericInput("ytd_wages", "YTD wages before this payroll ($)", value = 0, min = 0),
-        numericInput("additional_fed_withholding", "Voluntary additional federal withholding ($) (flat amount, beyond the standard rate calculation — Form W-4 Step 4(c))", value = 0, min = 0),
         selectInput("retirement_plan_type", "Retirement plan", choices = c("None", "SEP-IRA", "Solo 401(k)", "SIMPLE IRA"), selected = "None"),
         conditionalPanel(
           condition = "input.retirement_plan_type == 'SEP-IRA'",
@@ -160,6 +154,15 @@ ui <- page_sidebar(
           numericInput("simple_deferral_election", "Employee pre-tax deferral this payroll ($)", value = 0, min = 0),
           uiOutput("simple_deferral_room_ui")
         )
+      ),
+      accordion_panel(
+        "Cash, Expenses & History", icon = bsicons::bs_icon("wallet2"),
+        numericInput("beginning_cash", "Beginning LLC cash ($)", value = 0),
+        numericInput("other_opex", "Other operating expenses ($)", value = 0, min = 0),
+        numericInput("payroll_fees", "Payroll service fees ($)", value = 0, min = 0),
+        numericInput("min_cash_reserve", "Minimum operating cash reserve ($)", value = 0, min = 0),
+        numericInput("ytd_wages", "YTD wages before this payroll ($)", value = 0, min = 0),
+        numericInput("additional_fed_withholding", "Voluntary additional federal withholding ($) (flat amount, beyond the standard rate calculation — Form W-4 Step 4(c))", value = 0, min = 0)
       ),
       accordion_panel(
         "Default Tax Rates and Limits", icon = bsicons::bs_icon("sliders"),
