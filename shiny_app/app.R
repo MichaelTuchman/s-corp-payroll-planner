@@ -74,6 +74,7 @@ ui <- page_sidebar(
       open = "Inputs",
       accordion_panel(
         "Inputs", icon = bsicons::bs_icon("pencil-square"),
+        textInput("scenario_name", "Scenario name", value = "July planning scenario"),
         dateInput("planning_month", "Planning month", value = "2026-07-01"),
         numericInput("billable_hours", "Planned billable hours", value = 157, min = 0),
         numericInput("billing_rate", "Billing rate ($/hour)", value = 100, min = 0),
@@ -86,8 +87,7 @@ ui <- page_sidebar(
         numericInput("min_cash_reserve", "Minimum operating cash reserve ($)", value = 0, min = 0),
         sliderInput("sep_rate", "SEP contribution rate (%) (retirement) — slide to see the Cash Health Status change", value = 0, min = 0, max = 25, step = 0.5),
         numericInput("ytd_wages", "YTD wages before this payroll ($)", value = 0, min = 0),
-        numericInput("ytd_sep", "YTD SEP contributions before this payroll ($)", value = 0, min = 0),
-        textInput("notes", "Notes", value = "July planning scenario")
+        numericInput("ytd_sep", "YTD SEP contributions before this payroll ($)", value = 0, min = 0)
       ),
       accordion_panel(
         "Default Tax Rates and Limits", icon = bsicons::bs_icon("sliders"),
@@ -225,7 +225,7 @@ server <- function(input, output, session) {
       sep_rate = input$sep_rate / 100,
       ytd_wages = input$ytd_wages,
       ytd_sep = input$ytd_sep,
-      notes = input$notes
+      scenario_name = input$scenario_name
     )
   })
 

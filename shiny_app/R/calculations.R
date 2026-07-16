@@ -113,7 +113,7 @@ glossary <- data.frame(
     "Planning month", "Planned billable hours", "Billing rate", "Wage rate",
     "Additional receipts", "Expected client receipts", "Beginning LLC cash", "Other operating expenses",
     "Payroll service fees", "Minimum operating cash reserve", "SEP contribution rate",
-    "YTD wages before this payroll", "YTD SEP contributions before this payroll", "Notes",
+    "YTD wages before this payroll", "YTD SEP contributions before this payroll", "Scenario name",
     "Federal withholding planning rate", "Employee Social Security rate", "Employer Social Security rate",
     "Social Security wage base", "Employee Medicare rate", "Employer Medicare rate",
     "Additional Medicare rate", "Additional Medicare threshold", "State income-tax rate",
@@ -143,7 +143,7 @@ glossary <- data.frame(
     "Creates a retirement reserve.",
     "Applies annual wage bases and thresholds.",
     "Applies the annual SEP contribution limit.",
-    "Useful when copied later to a register.",
+    "Identifies this scenario at a glance — shown first in the snapshot table, a better label than the month alone.",
     "Estimates federal income-tax withholding.",
     "Employee OASDI withholding.",
     "Employer OASDI contribution.",
@@ -217,7 +217,7 @@ glossary <- data.frame(
 # infrequently.
 build_snapshot_row <- function(inputs, tax, results) {
   data.frame(
-    "Notes" = inputs$notes,
+    "Scenario Name" = inputs$scenario_name,
     "Month" = format(inputs$planning_month, "%Y-%m"),
     "Planned Billable Hours" = inputs$billable_hours,
     "Billing Rate ($/hr)" = inputs$billing_rate,
