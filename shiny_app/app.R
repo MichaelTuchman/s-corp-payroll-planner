@@ -108,7 +108,7 @@ ui <- page_sidebar(
         dateInput("planning_month", "Planning month", value = "2026-07-01"),
         numericInput("billable_hours", "Planned billable hours", value = 157, min = 0),
         numericInput("billing_rate", "Billing rate ($/hour)", value = 100, min = 0),
-        sliderInput("wage_rate", "Wage rate ($/hour) — slide to see the Cash Health Status change", value = 50, min = 0, max = 120, step = 1),
+        sliderInput("wage_rate", "Wage rate ($/hour) — cannot exceed billing rate; slide to see the Cash Health Status change", value = 50, min = 0, max = 100, step = 1),
         numericInput("additional_receipts", "Additional receipts ($) (beyond rate × hours — e.g. prior-month collections, retainers, advances; can be negative)", value = 0),
         div(style = "margin-top: -10px; margin-bottom: 15px; color: #495057;", "Expected client receipts: ", strong(textOutput("expected_receipts_preview", inline = TRUE))),
         numericInput("beginning_cash", "Beginning LLC cash ($)", value = 0),
@@ -262,12 +262,11 @@ server <- function(input, output, session) {
     data.frame("Available Cash Margin" = ranges, "Status" = t$status, check.names = FALSE)
   }, striped = TRUE, bordered = TRUE, colnames = TRUE)
 
-  # Wage rate has no reason to exceed billing rate by much, so keep the
-  # slider's top end tied to it (with a little headroom) instead of a fixed
-  # ceiling that leaves most of the track unused for realistic values.
+  # Wage rate must never exceed billing rate, so the slider's max is tied
+  # directly to it (wage rate == billing rate is allowed).
   observeEvent(input$billing_rate, {
     req(!is.na(input$billing_rate))
-    new_max <- max(1, round(input$billing_rate * 1.2, 2))
+    new_max <- max(0, round(input$billing_rate, 2))
     new_value <- if (is.na(input$wage_rate) || input$wage_rate > new_max) new_max else input$wage_rate
     updateSliderInput(session, "wage_rate", max = new_max, value = new_value)
   })
