@@ -83,6 +83,21 @@ ui <- page_sidebar(
     }
   ")),
 
+  tags$script(HTML("
+    Shiny.addCustomMessageHandler('copyToClipboard', function(msg) {
+      var btn = document.getElementById('copy_snapshot');
+      if (msg.error) { alert(msg.error); return; }
+      navigator.clipboard.writeText(msg.text).then(function() {
+        if (!btn) return;
+        var original = btn.innerHTML;
+        btn.innerHTML = 'Copied!';
+        setTimeout(function() { btn.innerHTML = original; }, 1500);
+      }).catch(function(err) {
+        alert('Could not copy to clipboard: ' + err);
+      });
+    });
+  ")),
+
   sidebar = sidebar(
     width = 380,
     accordion(
@@ -198,7 +213,11 @@ ui <- page_sidebar(
     ),
     textOutput("snapshot_count"),
     div(style = "overflow-x: auto;", tableOutput("snapshot_table")),
-    downloadButton("download_snapshot", "Download snapshot table (CSV)")
+    div(
+      downloadButton("download_snapshot", "Download snapshot table (CSV)"),
+      actionButton("copy_snapshot", "Copy to clipboard", icon = bsicons::bs_icon("clipboard"), class = "btn-outline-secondary"),
+      style = "margin-top: 10px;"
+    )
   )
 )
 
@@ -397,6 +416,16 @@ server <- function(input, output, session) {
       write.csv(captured_snapshots(), file, row.names = FALSE)
     }
   )
+
+  observeEvent(input$copy_snapshot, {
+    data <- captured_snapshots()
+    if (is.null(data)) {
+      session$sendCustomMessage("copyToClipboard", list(error = "Add a scenario to the table before copying."))
+      return()
+    }
+    tsv <- paste(capture.output(write.table(data, sep = "\t", row.names = FALSE, quote = FALSE)), collapse = "\n")
+    session$sendCustomMessage("copyToClipboard", list(text = tsv))
+  })
 }
 
 shinyApp(ui, server)
