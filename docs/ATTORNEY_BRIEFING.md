@@ -6,6 +6,9 @@ This document summarizes what the product currently does, how it handles data, a
 
 A web-based calculator that helps a one-owner S corporation (the owner is also the sole W-2 employee) model a single payroll scenario: expected revenue and payroll costs, estimated withholding and employer tax obligations, and how much business cash remains available afterward.
 
+## Try it out
+
+[https://michaelftuchman-s-corp-scenario-planner.share.connect.posit.cloud/](https://michaelftuchman-s-corp-scenario-planner.share.connect.posit.cloud/)
 ## Questions for counsel
 
 1. Is the current in-app disclaimer sufficient for informal preview sharing (one link, one early tester), or is something more formal needed even at that stage?
