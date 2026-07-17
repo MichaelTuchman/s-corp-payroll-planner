@@ -140,9 +140,9 @@ ui <- page_sidebar(
   sidebar = sidebar(
     width = 380,
     accordion(
-      open = "Inputs",
+      open = c("Scenario & Revenue", "Pay & Retirement"),
       accordion_panel(
-        "Inputs", icon = bsicons::bs_icon("pencil-square"),
+        "Scenario & Revenue", icon = bsicons::bs_icon("clipboard-data"),
         div(
           actionButton("reset_inputs", "Reset inputs", icon = bsicons::bs_icon("arrow-counterclockwise"), class = "btn-outline-secondary btn-sm"),
           style = "margin-bottom: 12px;"
@@ -151,9 +151,12 @@ ui <- page_sidebar(
         dateInput("planning_month", "Planning month", value = first_of_current_month()),
         numericInput("billable_hours", "Planned billable hours", value = 157, min = 0),
         numericInput("billing_rate", "Billing rate ($/hour)", value = 100, min = 0),
-        sliderInput("wage_rate", "Wage rate ($/hr, cannot exceed billing rate)", value = 50, min = 0, max = 100, step = 1),
         numericInput("additional_receipts", "Additional receipts ($, can be negative)", value = 0),
-        div(style = "margin-top: -10px; margin-bottom: 15px; color: #495057;", "Expected client receipts: ", strong(textOutput("expected_receipts_preview", inline = TRUE))),
+        div(style = "margin-top: -10px; margin-bottom: 15px; color: #495057;", "Expected client receipts: ", strong(textOutput("expected_receipts_preview", inline = TRUE)))
+      ),
+      accordion_panel(
+        "Pay & Retirement", icon = bsicons::bs_icon("piggy-bank"),
+        sliderInput("wage_rate", "Wage rate ($/hr, cannot exceed billing rate)", value = 50, min = 0, max = 100, step = 1),
         selectInput("retirement_plan_type", "Retirement plan", choices = c("None", "SEP-IRA", "Solo 401(k)", "SIMPLE IRA"), selected = "None"),
         conditionalPanel(
           condition = "input.retirement_plan_type == 'SEP-IRA'",
