@@ -96,6 +96,30 @@ ui <- page_sidebar(
     .sidebar .accordion-button, .sidebar .accordion-button:not(.collapsed), .sidebar .accordion-body {
       background-color: #e3f2fd;
     }
+
+    /* bslib puts a full-height resize handle (z-index 1001) on the sidebar's
+       right edge -- directly on top of the scrollbar, covering 10 of its 16px.
+       That leaves only a ~6px sliver to grab, and missing it gives the
+       left/right resize cursor instead, which is nearly impossible to use on a
+       short screen where the sidebar scrolls most. The sidebar is a fixed
+       width, so the handle isn't needed. */
+    .bslib-sidebar-resize-handle {
+      display: none !important;
+    }
+
+    /* Make the reclaimed scrollbar easy to see and grab. */
+    .sidebar::-webkit-scrollbar {
+      width: 14px;
+    }
+    .sidebar::-webkit-scrollbar-thumb {
+      background-color: #9aa0a6;
+      border-radius: 7px;
+      border: 3px solid transparent;
+      background-clip: content-box;
+    }
+    .sidebar::-webkit-scrollbar-thumb:hover {
+      background-color: #6c757d;
+    }
   ")),
 
   tags$script(HTML("
