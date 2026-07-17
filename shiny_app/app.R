@@ -151,30 +151,30 @@ ui <- page_sidebar(
         dateInput("planning_month", "Planning month", value = first_of_current_month()),
         numericInput("billable_hours", "Planned billable hours", value = 157, min = 0),
         numericInput("billing_rate", "Billing rate ($/hour)", value = 100, min = 0),
-        sliderInput("wage_rate", "Wage rate ($/hour) — cannot exceed billing rate; slide to see the Cash Health Status change", value = 50, min = 0, max = 100, step = 1),
-        numericInput("additional_receipts", "Additional receipts ($) (beyond rate × hours — e.g. prior-month collections, retainers, advances; can be negative)", value = 0),
+        sliderInput("wage_rate", "Wage rate ($/hr, cannot exceed billing rate)", value = 50, min = 0, max = 100, step = 1),
+        numericInput("additional_receipts", "Additional receipts ($, can be negative)", value = 0),
         div(style = "margin-top: -10px; margin-bottom: 15px; color: #495057;", "Expected client receipts: ", strong(textOutput("expected_receipts_preview", inline = TRUE))),
         selectInput("retirement_plan_type", "Retirement plan", choices = c("None", "SEP-IRA", "Solo 401(k)", "SIMPLE IRA"), selected = "None"),
         conditionalPanel(
           condition = "input.retirement_plan_type == 'SEP-IRA'",
-          sliderInput("sep_rate", "SEP contribution rate (%) (retirement) — slide to see the Cash Health Status change", value = 0, min = 0, max = 25, step = 0.5),
-          numericInput("ytd_sep", "YTD SEP contributions before this payroll ($)", value = 0, min = 0)
+          sliderInput("sep_rate", "SEP contribution rate (%)", value = 0, min = 0, max = 25, step = 0.5),
+          numericInput("ytd_sep", "YTD SEP contributions ($)", value = 0, min = 0)
         ),
         conditionalPanel(
           condition = "input.retirement_plan_type == 'Solo 401(k)'",
           checkboxInput("solo401k_catchup_eligible", "Age 50+ (catch-up eligible)", value = FALSE),
-          numericInput("ytd_solo401k_deferral", "YTD employee elective deferrals before this payroll ($)", value = 0, min = 0),
-          numericInput("ytd_solo401k_employer", "YTD Solo 401(k) employer contributions before this payroll ($)", value = 0, min = 0),
+          numericInput("ytd_solo401k_deferral", "YTD employee deferrals ($)", value = 0, min = 0),
+          numericInput("ytd_solo401k_employer", "YTD employer contributions ($)", value = 0, min = 0),
           numericInput("solo401k_deferral_election", "Employee pre-tax deferral this payroll ($)", value = 0, min = 0),
           uiOutput("solo401k_deferral_room_ui"),
-          sliderInput("solo401k_employer_rate", "Solo 401(k) employer profit-sharing rate (%) — slide to see the Cash Health Status change", value = 0, min = 0, max = 25, step = 0.5),
+          sliderInput("solo401k_employer_rate", "Employer profit-sharing rate (%)", value = 0, min = 0, max = 25, step = 0.5),
           uiOutput("solo401k_employer_room_ui")
         ),
         conditionalPanel(
           condition = "input.retirement_plan_type == 'SIMPLE IRA'",
-          selectInput("simple_employer_formula", "Employer contribution formula (choose one — the law only allows these two)", choices = c("3% Match", "2% Nonelective"), selected = "3% Match"),
+          selectInput("simple_employer_formula", "Employer contribution formula", choices = c("3% Match", "2% Nonelective"), selected = "3% Match"),
           checkboxInput("simple_catchup_eligible", "Age 50+ (catch-up eligible)", value = FALSE),
-          numericInput("ytd_simple_deferral", "YTD employee elective deferrals before this payroll ($)", value = 0, min = 0),
+          numericInput("ytd_simple_deferral", "YTD employee deferrals ($)", value = 0, min = 0),
           numericInput("simple_deferral_election", "Employee pre-tax deferral this payroll ($)", value = 0, min = 0),
           uiOutput("simple_deferral_room_ui")
         )
@@ -186,7 +186,7 @@ ui <- page_sidebar(
         numericInput("payroll_fees", "Payroll service fees ($)", value = 0, min = 0),
         numericInput("min_cash_reserve", "Minimum operating cash reserve ($)", value = 0, min = 0),
         numericInput("ytd_wages", "YTD wages before this payroll ($)", value = 0, min = 0),
-        numericInput("additional_fed_withholding", "Voluntary additional federal withholding ($) (flat amount, beyond the standard rate calculation — Form W-4 Step 4(c))", value = 0, min = 0)
+        numericInput("additional_fed_withholding", "Voluntary additional fed. withholding ($)", value = 0, min = 0)
       ),
       accordion_panel(
         "Default Tax Rates and Limits", icon = bsicons::bs_icon("sliders"),
@@ -196,7 +196,7 @@ ui <- page_sidebar(
         numericInput("ss_wage_base", "Social Security wage base ($ annual)", value = 184500, min = 0),
         numericInput("ee_medicare_rate", "Employee Medicare rate (%)", value = 1.45, min = 0, max = 100, step = 0.01),
         numericInput("er_medicare_rate", "Employer Medicare rate (%)", value = 1.45, min = 0, max = 100, step = 0.01),
-        numericInput("add_medicare_rate", "Additional Medicare rate (%) (surtax above threshold)", value = 0.9, min = 0, max = 100, step = 0.01),
+        numericInput("add_medicare_rate", "Additional Medicare rate (%)", value = 0.9, min = 0, max = 100, step = 0.01),
         numericInput("add_medicare_threshold", "Additional Medicare threshold ($ annual)", value = 200000, min = 0),
         numericInput("state_income_tax_rate", "State income-tax rate (%)", value = 3.07, min = 0, max = 100, step = 0.01),
         numericInput("local_tax_rate", "Local income / occupational tax rate (%)", value = 1.65, min = 0, max = 100, step = 0.01),
@@ -210,20 +210,20 @@ ui <- page_sidebar(
         numericInput("futa_wage_base", "FUTA wage base ($ annual)", value = 7000, min = 0),
         conditionalPanel(
           condition = "input.retirement_plan_type == 'SEP-IRA'",
-          numericInput("sep_annual_limit", "SEP annual contribution limit ($) (retirement)", value = 72000, min = 0)
+          numericInput("sep_annual_limit", "SEP annual contribution limit ($)", value = 72000, min = 0)
         ),
         conditionalPanel(
           condition = "input.retirement_plan_type == 'Solo 401(k)'",
-          numericInput("solo401k_deferral_limit", "Solo 401(k) employee deferral limit ($ annual)", value = 23500, min = 0),
-          numericInput("solo401k_catchup_limit", "Solo 401(k) catch-up limit ($ annual, age 50+)", value = 7500, min = 0),
-          numericInput("solo401k_combined_limit", "Solo 401(k) combined employee + employer limit ($ annual)", value = 70000, min = 0)
+          numericInput("solo401k_deferral_limit", "Employee deferral limit ($ annual)", value = 23500, min = 0),
+          numericInput("solo401k_catchup_limit", "Catch-up limit ($ annual, age 50+)", value = 7500, min = 0),
+          numericInput("solo401k_combined_limit", "Combined contribution limit ($ annual)", value = 70000, min = 0)
         ),
         conditionalPanel(
           condition = "input.retirement_plan_type == 'SIMPLE IRA'",
-          numericInput("simple_deferral_limit", "SIMPLE IRA employee deferral limit ($ annual) (placeholder — verify current figure)", value = 16000, min = 0),
-          numericInput("simple_catchup_limit", "SIMPLE IRA catch-up limit ($ annual, age 50+) (placeholder — verify current figure)", value = 3500, min = 0),
-          numericInput("simple_match_rate", "SIMPLE IRA employer match rate (%) (\"3% Match\" formula)", value = 3, min = 0, max = 100, step = 0.5),
-          numericInput("simple_nonelective_rate", "SIMPLE IRA employer nonelective rate (%) (\"2% Nonelective\" formula)", value = 2, min = 0, max = 100, step = 0.5)
+          numericInput("simple_deferral_limit", "Employee deferral limit ($ annual)", value = 16000, min = 0),
+          numericInput("simple_catchup_limit", "Catch-up limit ($ annual, age 50+)", value = 3500, min = 0),
+          numericInput("simple_match_rate", "Employer match rate (%)", value = 3, min = 0, max = 100, step = 0.5),
+          numericInput("simple_nonelective_rate", "Employer nonelective rate (%)", value = 2, min = 0, max = 100, step = 0.5)
         )
       )
     )
