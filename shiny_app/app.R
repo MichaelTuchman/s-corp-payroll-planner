@@ -120,6 +120,34 @@ ui <- page_sidebar(
     .sidebar::-webkit-scrollbar-thumb:hover {
       background-color: #6c757d;
     }
+
+    /* Each results table ends with its bottom line -- Net employee paycheck on
+       the left, Available cash on the right -- but they render with the same
+       weight as any itemized row above them. Lift the last row of each so the
+       figure that actually matters reads as the total. Uses the accounting
+       convention of a rule above the total, plus the same pale blue as the
+       sidebar for consistency. !important is needed to beat table-striped,
+       which sets cell backgrounds. */
+    #employee_results tbody tr:last-child td,
+    #employer_results tbody tr:last-child td {
+      background-color: #fff !important;
+      border-top: 2px solid #ced4da;
+      font-weight: 700;
+      font-size: 1.08em;
+      padding-top: 0.55rem;
+      padding-bottom: 0.55rem;
+    }
+
+    /* Divider between the label and the amount, matching the rule above.
+       Kept in the same light-grey family as the table's own borders (#dee2e6)
+       rather than a dark ink -- on a white row it reads without shouting.
+       The row is pinned to white because the two tables have 13 and 12 body
+       rows, so with striping their last rows would otherwise land on
+       different shades. */
+    #employee_results tbody tr:last-child td:first-child,
+    #employer_results tbody tr:last-child td:first-child {
+      border-right: 2px solid #ced4da;
+    }
   ")),
 
   tags$script(HTML("
