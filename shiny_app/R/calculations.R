@@ -76,7 +76,7 @@ calculate_planner <- function(inputs, tax) {
 
   if (is_simple) {
     simple_employee_deferral <- min(inputs$simple_deferral_election, simple_deferral_room)
-    simple_employer_contribution <- if (identical(inputs$simple_employer_formula, "3% Match")) {
+    simple_employer_contribution <- if (identical(inputs$simple_employer_formula, "Match")) {
       min(simple_employee_deferral, gross_wages * tax$simple_match_rate)
     } else {
       gross_wages * tax$simple_nonelective_rate
@@ -274,8 +274,8 @@ glossary <- data.frame(
     "Caps employee deferral + employer contribution together (Section 415(c)).",
     "Caps the SIMPLE IRA employee elective-deferral bucket, before any catch-up. Lower than the Solo 401(k) limit.",
     "Additional amount allowed for the SIMPLE IRA employee deferral if age 50+.",
-    "Employer match rate under the \"3% Match\" formula — dollar-for-dollar up to this rate, capped by what the employee actually deferred.",
-    "Flat employer contribution rate under the \"2% Nonelective\" formula, paid to the employee regardless of their own deferral.",
+    "Employer match rate under the Match formula — dollar-for-dollar up to this rate, capped by what the employee actually deferred. Commonly 3%, but may be reduced to as low as 1% in up to 2 of any 5 years.",
+    "Flat employer contribution rate under the Nonelective formula, paid to the employee regardless of their own deferral. Commonly 2%.",
     "Billable hours × billing rate.",
     "Billable hours × wage rate.",
     "Gross wages × federal planning rate.",

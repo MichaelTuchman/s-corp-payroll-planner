@@ -175,7 +175,7 @@ ui <- page_sidebar(
         ),
         conditionalPanel(
           condition = "input.retirement_plan_type == 'SIMPLE IRA'",
-          selectInput("simple_employer_formula", "Employer contribution formula", choices = c("3% Match", "2% Nonelective"), selected = "3% Match"),
+          selectInput("simple_employer_formula", "Employer contribution formula", choices = c("Match", "Nonelective"), selected = "Match"),
           checkboxInput("simple_catchup_eligible", "Age 50+ (catch-up eligible)", value = FALSE),
           numericInput("ytd_simple_deferral", "YTD employee deferrals ($)", value = 0, min = 0),
           numericInput("simple_deferral_election", "Employee pre-tax deferral this payroll ($)", value = 0, min = 0),
@@ -361,7 +361,7 @@ server <- function(input, output, session) {
     updateCheckboxInput(session, "solo401k_catchup_eligible", value = FALSE)
     updateNumericInput(session, "ytd_solo401k_deferral", value = 0)
     updateNumericInput(session, "ytd_solo401k_employer", value = 0)
-    updateSelectInput(session, "simple_employer_formula", selected = "3% Match")
+    updateSelectInput(session, "simple_employer_formula", selected = "Match")
     updateNumericInput(session, "simple_deferral_election", value = 0)
     updateCheckboxInput(session, "simple_catchup_eligible", value = FALSE)
     updateNumericInput(session, "ytd_simple_deferral", value = 0)
