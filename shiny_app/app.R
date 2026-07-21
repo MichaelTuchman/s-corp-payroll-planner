@@ -148,6 +148,14 @@ ui <- page_sidebar(
     #employer_results tbody tr:last-child td:first-child {
       border-right: 2px solid #ced4da;
     }
+
+    /* A year-to-date field reading zero. Amber rather than red: this is a
+       nudge, not an error -- zero is often correct. Weight is a second,
+       non-colour channel so the cue doesn't rely on colour alone. */
+    .ytd-zero {
+      color: #8a5a00;
+      font-weight: 600;
+    }
   ")),
 
   tags$script(HTML("
@@ -163,6 +171,30 @@ ui <- page_sidebar(
         alert('Could not copy to clipboard: ' + err);
       });
     });
+  ")),
+
+  # Tint the year-to-date fields whenever they read zero. Deliberately makes no
+  # claim that zero is wrong -- with irregular billing there may genuinely have
+  # been no payroll yet this year. It only draws the eye to a value worth a
+  # second look, because forgetting to carry YTD forward produces a quietly
+  # wrong answer (FUTA keeps being charged past the wage base, the Social
+  # Security cap never engages) rather than an error.
+  tags$script(HTML("
+    (function() {
+      var YTD_IDS = ['ytd_wages', 'ytd_sep', 'ytd_solo401k_deferral',
+                     'ytd_solo401k_employer', 'ytd_simple_deferral'];
+      function flagZeroYtd() {
+        YTD_IDS.forEach(function(id) {
+          var el = document.getElementById(id);
+          if (!el) return;                       // inside a hidden conditionalPanel
+          var v = el.value;
+          el.classList.toggle('ytd-zero', v !== '' && parseFloat(v) === 0);
+        });
+      }
+      document.addEventListener('input', flagZeroYtd);
+      // shiny:idle catches programmatic updates (Reset) and panels appearing.
+      $(document).on('shiny:idle', flagZeroYtd);
+    })();
   ")),
 
   sidebar = sidebar(
