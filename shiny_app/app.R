@@ -321,11 +321,11 @@ ui <- page_sidebar(
   layout_columns(
     col_widths = c(6, 6),
     card(
-      card_header("Section 3 — Employee Payroll Results"),
+      card_header("Employee Payroll Results"),
       tableOutput("employee_results")
     ),
     card(
-      card_header("Section 4 — Employer Obligations and Cash Planning"),
+      card_header("Employer Obligations and Cash Planning"),
       tableOutput("employer_results")
     )
   ),
