@@ -581,13 +581,18 @@ server <- function(input, output, session) {
 
   output$employer_results <- renderTable({
     r <- results()
+    # Available cash is just cash-after-obligations minus the minimum reserve,
+    # so at the default reserve of $0 the two rows show the same number and
+    # read like a duplicate. Naming the reserve in the label explains why they
+    # match (or differ) without hiding either figure.
+    available_cash_label <- paste0("Available cash (after ", money(inputs()$min_cash_reserve), " reserve)")
     data.frame(
       Item = c(
         "Employer Social Security", "Employer Medicare", "Employer state unemployment",
         "Employer leave / disability", "Other state payroll tax (catch-all)",
         "FUTA (federal unemployment tax)", "SEP contribution (retirement)",
         "Solo 401(k) employer contribution (retirement)", "SIMPLE IRA employer contribution (retirement)",
-        "Total payroll cash requirement", "Cash after all obligations", "Available cash"
+        "Total payroll cash requirement", "Cash after all obligations", available_cash_label
       ),
       Amount = c(
         money(r$er_ss), money(r$er_medicare), money(r$er_sui),
