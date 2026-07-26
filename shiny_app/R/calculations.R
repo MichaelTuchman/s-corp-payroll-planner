@@ -124,9 +124,19 @@ calculate_planner <- function(inputs, tax) {
   solo401k_reserve <- solo401k_employee_deferral + solo401k_employer_contribution
   simple_reserve <- simple_employee_deferral + simple_employer_contribution
 
+  # Plan-agnostic totals. Since the plans are mutually exclusive, at most one
+  # term in each sum is non-zero, so these report the active plan's figures
+  # without the caller needing to know which plan is selected. The snapshot
+  # uses these instead of one column per plan, which left two always-zero
+  # columns on every row.
+  retirement_employee_deferral <- solo401k_employee_deferral + simple_employee_deferral
+  retirement_employer_contribution <- sep_contribution + solo401k_employer_contribution +
+    simple_employer_contribution
+  retirement_reserve <- sep_reserve + solo401k_reserve + simple_reserve
+
   total_payroll_cash_requirement <- net_paycheck + federal_deposit + state_wh_deposit +
-    local_deposit + sui_deposit + leave_deposit + other_state_deposit + futa_reserve + sep_reserve +
-    solo401k_reserve + simple_reserve
+    local_deposit + sui_deposit + leave_deposit + other_state_deposit + futa_reserve +
+    retirement_reserve
 
   cash_after_obligations <- inputs$beginning_cash + client_receipts -
     total_payroll_cash_requirement - inputs$other_opex - inputs$payroll_fees
@@ -167,6 +177,9 @@ calculate_planner <- function(inputs, tax) {
     simple_employer_contribution = simple_employer_contribution,
     simple_deferral_room = simple_deferral_room,
     simple_reserve = simple_reserve,
+    retirement_employee_deferral = retirement_employee_deferral,
+    retirement_employer_contribution = retirement_employer_contribution,
+    retirement_reserve = retirement_reserve,
     federal_deposit = federal_deposit,
     state_wh_deposit = state_wh_deposit,
     local_deposit = local_deposit,
@@ -367,8 +380,7 @@ build_snapshot_row <- function(inputs, tax, results) {
     "Employee State UI ($)" = results$ee_sui,
     "Employee Leave / Disability ($)" = results$ee_leave,
     "Total Employee Withholding ($)" = results$total_ee_withholding,
-    "Solo 401(k) Employee Deferral ($)" = results$solo401k_employee_deferral,
-    "SIMPLE IRA Employee Deferral ($)" = results$simple_employee_deferral,
+    "Retirement Employee Deferral ($)" = results$retirement_employee_deferral,
     "Net Paycheck ($)" = results$net_paycheck,
     "Employer Social Security ($)" = results$er_ss,
     "Employer Medicare ($)" = results$er_medicare,
@@ -376,10 +388,8 @@ build_snapshot_row <- function(inputs, tax, results) {
     "Employer Leave / Disability ($)" = results$er_leave,
     "Other State Payroll Tax ($)" = results$other_state_er,
     "FUTA ($)" = results$futa,
-    "SEP Contribution ($)" = results$sep_contribution,
-    "Solo 401(k) Employer Contribution ($)" = results$solo401k_employer_contribution,
-    "SIMPLE IRA Employer Formula" = inputs$simple_employer_formula,
-    "SIMPLE IRA Employer Contribution ($)" = results$simple_employer_contribution,
+    "Retirement Employer Formula" = if (identical(inputs$retirement_plan_type, "SIMPLE IRA")) inputs$simple_employer_formula else "",
+    "Retirement Employer Contribution ($)" = results$retirement_employer_contribution,
     "Federal Payroll Tax Deposit ($)" = results$federal_deposit,
     "State Withholding Deposit ($)" = results$state_wh_deposit,
     "Local Tax Deposit ($)" = results$local_deposit,
@@ -387,9 +397,7 @@ build_snapshot_row <- function(inputs, tax, results) {
     "State Leave / Disability Deposit ($)" = results$leave_deposit,
     "Other State Payroll Deposit ($)" = results$other_state_deposit,
     "FUTA Reserve ($)" = results$futa_reserve,
-    "SEP Reserve ($)" = results$sep_reserve,
-    "Solo 401(k) Reserve ($)" = results$solo401k_reserve,
-    "SIMPLE IRA Reserve ($)" = results$simple_reserve,
+    "Retirement Reserve ($)" = results$retirement_reserve,
     "Total Payroll Cash Requirement ($)" = results$total_payroll_cash_requirement,
     "Other Operating Expenses ($)" = inputs$other_opex,
     "Payroll Service Fees ($)" = inputs$payroll_fees,

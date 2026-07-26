@@ -200,6 +200,33 @@ check("Solo 401(k) deferral ignored when SIMPLE is selected", r_leak$solo401k_em
 check("Solo 401(k) employer ignored when SIMPLE is selected", r_leak$solo401k_employer_contribution, 0)
 check("the selected plan still applies", r_leak$simple_employee_deferral, 100)
 
+section("Plan-agnostic retirement totals (what the snapshot reports)")
+# These collapse the per-plan figures into one set of columns. That is only
+# sound because the plans are mutually exclusive -- so assert the invariant
+# directly, not just the arithmetic.
+for (plan in c("None", "SEP-IRA", "Solo 401(k)", "SIMPLE IRA")) {
+  ri <- calculate_planner(with_inputs(
+    retirement_plan_type = plan, sep_rate = 0.10,
+    solo401k_deferral_election = 500, solo401k_employer_rate = 0.10,
+    simple_deferral_election = 300), tax)
+  nonzero_deferrals <- sum(c(ri$solo401k_employee_deferral, ri$simple_employee_deferral) != 0)
+  nonzero_employer <- sum(c(ri$sep_contribution, ri$solo401k_employer_contribution,
+                            ri$simple_employer_contribution) != 0)
+  check(paste0("[", plan, "] at most one plan's employee deferral is non-zero"),
+        nonzero_deferrals <= 1, TRUE)
+  check(paste0("[", plan, "] at most one plan's employer contribution is non-zero"),
+        nonzero_employer <= 1, TRUE)
+  check(paste0("[", plan, "] combined deferral matches the active plan"),
+        ri$retirement_employee_deferral,
+        ri$solo401k_employee_deferral + ri$simple_employee_deferral)
+  check(paste0("[", plan, "] combined employer contribution matches the active plan"),
+        ri$retirement_employer_contribution,
+        ri$sep_contribution + ri$solo401k_employer_contribution + ri$simple_employer_contribution)
+  check(paste0("[", plan, "] reserve = employee deferral + employer contribution"),
+        ri$retirement_reserve,
+        ri$retirement_employee_deferral + ri$retirement_employer_contribution)
+}
+
 # ---------------------------------------------------------------------------
 section("Cash health margin is monotonic in wage rate (the slider relies on this)")
 margins <- sapply(seq(0, 500, by = 10), function(w) {
@@ -228,6 +255,23 @@ check("Scenario Name leads the row", names(row)[1], "Scenario Name")
 check("carries the selected plan", row[["Retirement Plan"]], "Solo 401(k)")
 check("carries the assumed federal rate", row[["Federal Withholding Rate"]], 0.24)
 check("no missing values", any(is.na(row)), FALSE)
+# Retirement is reported plan-agnostically: one set of columns, not one per
+# plan (which left two always-zero columns on every row).
+check("no per-plan retirement columns remain",
+      any(grepl("Solo 401|SIMPLE IRA|SEP ", names(row))), FALSE)
+check("employee deferral column reports the active plan",
+      row[["Retirement Employee Deferral ($)"]], 1000)
+check("employer contribution column reports the active plan",
+      row[["Retirement Employer Contribution ($)"]], GROSS * 0.10)
+check("employer formula is blank for a non-SIMPLE plan",
+      row[["Retirement Employer Formula"]], "")
+row_simple <- (function() {
+  i <- with_inputs(retirement_plan_type = "SIMPLE IRA", simple_deferral_election = 300,
+                   simple_employer_formula = "Nonelective")
+  build_snapshot_row(i, tax, calculate_planner(i, tax))
+})()
+check("employer formula is carried for a SIMPLE plan",
+      row_simple[["Retirement Employer Formula"]], "Nonelective")
 row_blank <- build_snapshot_row(with_inputs(planning_month = character(0)), tax, r)
 check("a blank planning month yields an empty Month, not an error",
       row_blank[["Month"]], "")
