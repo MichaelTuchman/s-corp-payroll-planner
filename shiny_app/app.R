@@ -567,14 +567,14 @@ server <- function(input, output, session) {
         "Employee Medicare", "Additional Medicare (surtax above threshold)", "State income tax",
         "Local income / occupational tax", "Employee state unemployment",
         "Employee leave / disability", "Total employee withholding",
-        "Solo 401(k) employee elective deferral", "SIMPLE IRA employee elective deferral", "Net employee paycheck"
+        "Retirement employee deferral", "Net employee paycheck"
       ),
       Amount = c(
         money(r$gross_wages), money(r$fed_withholding), money(r$ee_ss),
         money(r$ee_medicare), money(r$add_medicare), money(r$state_income_tax),
         money(r$local_tax), money(r$ee_sui), money(r$ee_leave),
-        money(r$total_ee_withholding), money(r$solo401k_employee_deferral),
-        money(r$simple_employee_deferral), money(r$net_paycheck)
+        money(r$total_ee_withholding), money(r$retirement_employee_deferral),
+        money(r$net_paycheck)
       )
     )
   }, striped = TRUE, bordered = TRUE, colnames = TRUE)
@@ -590,14 +590,13 @@ server <- function(input, output, session) {
       Item = c(
         "Employer Social Security", "Employer Medicare", "Employer state unemployment",
         "Employer leave / disability", "Other state payroll tax (catch-all)",
-        "FUTA (federal unemployment tax)", "SEP contribution (retirement)",
-        "Solo 401(k) employer contribution (retirement)", "SIMPLE IRA employer contribution (retirement)",
+        "FUTA (federal unemployment tax)", "Retirement employer contribution",
         "Total payroll cash requirement", "Cash after all obligations", available_cash_label
       ),
       Amount = c(
         money(r$er_ss), money(r$er_medicare), money(r$er_sui),
-        money(r$er_leave), money(r$other_state_er), money(r$futa), money(r$sep_contribution),
-        money(r$solo401k_employer_contribution), money(r$simple_employer_contribution),
+        money(r$er_leave), money(r$other_state_er), money(r$futa),
+        money(r$retirement_employer_contribution),
         money(r$total_payroll_cash_requirement), money(r$cash_after_obligations), money(r$available_cash)
       )
     )
