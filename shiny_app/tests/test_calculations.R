@@ -94,6 +94,21 @@ check("employer SS stops at the annual wage base", r_ss$er_ss, 0)
 check("Medicare keeps applying above the SS base", r_ss$ee_medicare, GROSS * 0.0145)
 
 # ---------------------------------------------------------------------------
+section("Employee unemployment wage-base cap is toggleable (PA taxes all wages)")
+# Use a gross ABOVE the $10,000 base so the cap actually engages: 250 hrs x $50.
+big <- with_inputs(billable_hours = 250)   # gross = $12,500
+r_cap <- calculate_planner(big, tax)
+check("default: employee SUI capped at the $10,000 wage base", r_cap$ee_sui, 10000 * 0.0007)
+r_unc <- calculate_planner(big, modifyList(tax, list(ee_sui_uncapped = TRUE)))
+check("uncapped: employee SUI on full gross wages", r_unc$ee_sui, 12500 * 0.0007)
+r_unc_ytd <- calculate_planner(modifyList(big, list(ytd_wages = 200000)),
+                               modifyList(tax, list(ee_sui_uncapped = TRUE)))
+check("uncapped: still taxes full gross even past the base (no YTD limit)",
+      r_unc_ytd$ee_sui, 12500 * 0.0007)
+check("the toggle does NOT affect the employer side (still capped)",
+      r_unc$er_sui, 10000 * 0.065)
+
+# ---------------------------------------------------------------------------
 section("Voluntary additional federal withholding")
 r_afw <- calculate_planner(with_inputs(additional_fed_withholding = 200), tax)
 check("adds a flat amount on top of the rate calculation",
@@ -204,7 +219,7 @@ section("Reconciliation against a CPA-prepared PA paystub (08/01/2026)")
 # The CPA used a 27% federal planning rate. Withholding lines this model
 # is expected to reproduce (SITW/LITW shown pre-rounding; the paystub
 # rounds to $369.63 / $198.66).
-pay_tax <- modifyList(tax, list(fed_wh_rate = 0.27))
+pay_tax <- modifyList(tax, list(fed_wh_rate = 0.27, ee_sui_uncapped = TRUE))
 pay_in <- with_inputs(retirement_plan_type = "SIMPLE IRA", simple_employer_formula = "Match",
                       wage_rate = 70, billable_hours = 172, billing_rate = 100,
                       simple_deferral_election = 600, ytd_wages = 0)
@@ -215,13 +230,12 @@ check("SSWH = $746.48 (6.2% of full gross)", p$ee_ss, 746.48)
 check("MCWH = $174.58 (1.45% of full gross)", p$ee_medicare, 174.58)
 check("SITW ~ $369.63 (3.07% of full gross)", round(p$state_income_tax, 2), 369.63)
 check("LITW = $198.66 (1.65% of full gross)", p$local_tax, 198.66)
+check("PASUI ~ $8.43 (0.07% of full gross, uncapped)", round(p$ee_sui, 2), 8.43)
 check("employer SIMPLE match = $361.20 (3% of gross, capped)", p$simple_employer_contribution, 361.20)
 check("FUTA = $42.00 (0.6% of the $7,000 base)", p$futa, 42.00)
-# Known open discrepancies vs. this paystub, tracked deliberately:
-#  - PASUI (employee UC): paystub $8.43 = 0.07% of full gross, uncapped;
-#    this model still caps employee SUI at the $10,000 wage base ($7.00).
+# One documented setting difference vs. this paystub, not a code issue:
 #  - Employer PA UC: paystub $649.68 uses the employer's exact assigned rate
-#    (~6.4968%); the app default 6.5% gives $650.00.
+#    (~6.4968%); the app default 6.5% gives $650.00. Enter the assigned rate.
 
 # ---------------------------------------------------------------------------
 section("Retirement plans are mutually exclusive: no field leakage")

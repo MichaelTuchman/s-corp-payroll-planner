@@ -107,7 +107,13 @@ calculate_planner <- function(inputs, tax) {
   # rule, so a nationwide version would need this to be configurable.
   state_income_tax <- gross_wages * tax$state_income_tax_rate
   local_tax <- gross_wages * tax$local_tax_rate
-  ee_sui <- sui_taxable * tax$ee_sui_rate
+  # Employee unemployment: some states (notably PA) tax the employee portion on
+  # ALL wages with no wage base cap, while the employer portion stays capped at
+  # the wage base. The toggle controls the employee side only -- confirmed
+  # against the PA paystub (PASUI $8.43 = 0.07% x full $12,040, uncapped;
+  # employer PA UC still capped at the $10,000 base).
+  ee_sui_taxable <- if (isTRUE(tax$ee_sui_uncapped)) gross_wages else sui_taxable
+  ee_sui <- ee_sui_taxable * tax$ee_sui_rate
   ee_leave <- gross_wages * tax$ee_leave_rate
 
   total_ee_withholding <- fed_withholding + ee_ss + ee_medicare + add_medicare +
