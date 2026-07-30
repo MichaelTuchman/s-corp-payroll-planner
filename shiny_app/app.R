@@ -160,7 +160,9 @@ ui <- page_sidebar(
 
   tags$script(HTML("
     Shiny.addCustomMessageHandler('copyToClipboard', function(msg) {
-      var btn = document.getElementById('copy_snapshot');
+      // btnId tells us which button to flash 'Copied!' on, since more than one
+      // copy button now shares this handler.
+      var btn = msg.btnId ? document.getElementById(msg.btnId) : null;
       if (msg.error) { alert(msg.error); return; }
       navigator.clipboard.writeText(msg.text).then(function() {
         if (!btn) return;
@@ -266,6 +268,7 @@ ui <- page_sidebar(
         numericInput("ee_sui_rate", "Employee state unemployment rate (%)", value = 0.07, min = 0, max = 100, step = 0.01),
         numericInput("er_sui_rate", "Employer state unemployment rate (%)", value = 6.5, min = 0, max = 100, step = 0.01),
         numericInput("sui_wage_base", "State unemployment wage base ($ annual)", value = 10000, min = 0),
+        checkboxInput("ee_sui_uncapped", "Employee unemployment taxed on all wages (no wage base cap — PA)", value = FALSE),
         numericInput("ee_leave_rate", "Employee leave / disability rate (%)", value = 0, min = 0, max = 100, step = 0.01),
         numericInput("er_leave_rate", "Employer leave / disability rate (%)", value = 0, min = 0, max = 100, step = 0.01),
         numericInput("other_state_er_rate", "Other state payroll-tax rate (%)", value = 0, min = 0, max = 100, step = 0.01),
@@ -322,7 +325,11 @@ ui <- page_sidebar(
     col_widths = c(6, 6),
     card(
       card_header("Employee Payroll Results"),
-      tableOutput("employee_results")
+      tableOutput("employee_results"),
+      div(
+        actionButton("copy_employee", "Copy to clipboard", icon = bsicons::bs_icon("clipboard"), class = "btn-outline-secondary btn-sm"),
+        style = "margin-top: 6px;"
+      )
     ),
     card(
       card_header("Employer Obligations and Cash Planning"),
@@ -348,7 +355,11 @@ ui <- page_sidebar(
       downloadButton("download_snapshot", "Download snapshot table (CSV)"),
       actionButton("copy_snapshot", "Copy to clipboard", icon = bsicons::bs_icon("clipboard"), class = "btn-outline-secondary"),
       style = "margin-top: 10px;"
-    )
+    ),
+    # Affects the clipboard copy only (the CSV download stays wide for
+    # spreadsheets). Transposed = one field per line, which pastes into an
+    # email far more readably than a very wide table.
+    checkboxInput("snapshot_transpose", "Transpose the clipboard copy to long format (better for email)", value = FALSE)
   )
 )
 
@@ -471,6 +482,7 @@ server <- function(input, output, session) {
       ee_sui_rate = input$ee_sui_rate / 100,
       er_sui_rate = input$er_sui_rate / 100,
       sui_wage_base = input$sui_wage_base,
+      ee_sui_uncapped = isTRUE(input$ee_sui_uncapped),
       ee_leave_rate = input$ee_leave_rate / 100,
       er_leave_rate = input$er_leave_rate / 100,
       other_state_er_rate = input$other_state_er_rate / 100,
@@ -559,7 +571,8 @@ server <- function(input, output, session) {
     )
   })
 
-  output$employee_results <- renderTable({
+  # Built once so the table and its copy button share exactly one definition.
+  employee_results_df <- reactive({
     r <- results()
     data.frame(
       Item = c(
@@ -575,8 +588,13 @@ server <- function(input, output, session) {
         money(r$local_tax), money(r$ee_sui), money(r$ee_leave),
         money(r$total_ee_withholding), money(r$retirement_employee_deferral),
         money(r$net_paycheck)
-      )
+      ),
+      check.names = FALSE
     )
+  })
+
+  output$employee_results <- renderTable({
+    employee_results_df()
   }, striped = TRUE, bordered = TRUE, colnames = TRUE)
 
   output$employer_results <- renderTable({
@@ -641,11 +659,32 @@ server <- function(input, output, session) {
   observeEvent(input$copy_snapshot, {
     data <- captured_snapshots()
     if (is.null(data)) {
-      session$sendCustomMessage("copyToClipboard", list(error = "Add a scenario to the table before copying."))
+      session$sendCustomMessage("copyToClipboard",
+        list(btnId = "copy_snapshot", error = "Add a scenario to the table before copying."))
       return()
     }
-    tsv <- paste(capture.output(write.table(data, sep = "\t", row.names = FALSE, quote = FALSE)), collapse = "\n")
-    session$sendCustomMessage("copyToClipboard", list(text = tsv))
+    if (isTRUE(input$snapshot_transpose)) {
+      # t() turns each column into a row: field names down the first column,
+      # one column per captured scenario. col.names = FALSE drops the numeric
+      # scenario indices -- the "Scenario Name" row already identifies them.
+      tsv <- paste(capture.output(
+        write.table(t(data), sep = "\t", col.names = FALSE, quote = FALSE)),
+        collapse = "\n")
+    } else {
+      tsv <- paste(capture.output(
+        write.table(data, sep = "\t", row.names = FALSE, quote = FALSE)),
+        collapse = "\n")
+    }
+    session$sendCustomMessage("copyToClipboard", list(btnId = "copy_snapshot", text = tsv))
+  })
+
+  # The Employee Payroll Results table is already vertical (Item / Amount), so
+  # it copies as-is -- no transpose needed; that shape pastes cleanly into email.
+  observeEvent(input$copy_employee, {
+    tsv <- paste(capture.output(
+      write.table(employee_results_df(), sep = "\t", row.names = FALSE, quote = FALSE)),
+      collapse = "\n")
+    session$sendCustomMessage("copyToClipboard", list(btnId = "copy_employee", text = tsv))
   })
 }
 

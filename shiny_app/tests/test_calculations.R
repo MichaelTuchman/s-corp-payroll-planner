@@ -94,6 +94,21 @@ check("employer SS stops at the annual wage base", r_ss$er_ss, 0)
 check("Medicare keeps applying above the SS base", r_ss$ee_medicare, GROSS * 0.0145)
 
 # ---------------------------------------------------------------------------
+section("Employee unemployment wage-base cap is toggleable (PA taxes all wages)")
+# Use a gross ABOVE the $10,000 base so the cap actually engages: 250 hrs x $50.
+big <- with_inputs(billable_hours = 250)   # gross = $12,500
+r_cap <- calculate_planner(big, tax)
+check("default: employee SUI capped at the $10,000 wage base", r_cap$ee_sui, 10000 * 0.0007)
+r_unc <- calculate_planner(big, modifyList(tax, list(ee_sui_uncapped = TRUE)))
+check("uncapped: employee SUI on full gross wages", r_unc$ee_sui, 12500 * 0.0007)
+r_unc_ytd <- calculate_planner(modifyList(big, list(ytd_wages = 200000)),
+                               modifyList(tax, list(ee_sui_uncapped = TRUE)))
+check("uncapped: still taxes full gross even past the base (no YTD limit)",
+      r_unc_ytd$ee_sui, 12500 * 0.0007)
+check("the toggle does NOT affect the employer side (still capped)",
+      r_unc$er_sui, 10000 * 0.065)
+
+# ---------------------------------------------------------------------------
 section("Voluntary additional federal withholding")
 r_afw <- calculate_planner(with_inputs(additional_fed_withholding = 200), tax)
 check("adds a flat amount on top of the rate calculation",
@@ -116,15 +131,19 @@ r_sep_cap <- calculate_planner(
 check("capped by remaining room under the annual limit", r_sep_cap$sep_contribution, 1000)
 
 # ---------------------------------------------------------------------------
-section("Solo 401(k): deferral is pre-tax for income tax but NOT for FICA")
+section("Solo 401(k): deferral reduces FEDERAL only; everything else on full gross (PA)")
+# Verified against a CPA-prepared PA paystub: elective deferrals reduce federal
+# taxable wages, but PA state/local income tax and FICA are on full gross.
 s401 <- with_inputs(retirement_plan_type = "Solo 401(k)",
                     solo401k_deferral_election = 1000, solo401k_employer_rate = 0.10)
 r401 <- calculate_planner(s401, tax)
 check("employee deferral taken as elected", r401$solo401k_employee_deferral, 1000)
 check("federal withholding computed on REDUCED wages",
       r401$fed_withholding, (GROSS - 1000) * 0.24)
-check("state tax computed on REDUCED wages",
-      r401$state_income_tax, (GROSS - 1000) * 0.0307)
+check("state tax on FULL gross wages (PA: deferral not pre-tax for state)",
+      r401$state_income_tax, GROSS * 0.0307)
+check("local tax on FULL gross wages (PA: deferral not pre-tax for local)",
+      r401$local_tax, GROSS * 0.0165)
 check("Social Security still on FULL gross wages", r401$ee_ss, r$ee_ss)
 check("Medicare still on FULL gross wages", r401$ee_medicare, r$ee_medicare)
 check("employer contribution = rate x gross", r401$solo401k_employer_contribution, GROSS * 0.10)
@@ -177,9 +196,13 @@ r_ne <- calculate_planner(with_inputs(retirement_plan_type = "SIMPLE IRA",
 check("paid even when the employee defers nothing",
       r_ne$simple_employer_contribution, GROSS * 0.02)
 
-section("SIMPLE IRA: deferral behaves like a pre-tax deferral, and respects limits")
+section("SIMPLE IRA: deferral reduces FEDERAL only; state/local/FICA on full gross")
 check("federal withholding on reduced wages",
       r_m_high$fed_withholding, (GROSS - 300) * 0.24)
+check("state tax on FULL gross (PA: deferral not pre-tax for state)",
+      r_m_high$state_income_tax, GROSS * 0.0307)
+check("local tax on FULL gross (PA: deferral not pre-tax for local)",
+      r_m_high$local_tax, GROSS * 0.0165)
 check("FICA unaffected by the deferral", r_m_high$ee_ss, r$ee_ss)
 r_s_over <- calculate_planner(with_inputs(retirement_plan_type = "SIMPLE IRA",
                                           simple_deferral_election = 50000), tax)
@@ -188,6 +211,31 @@ r_s_catch <- calculate_planner(with_inputs(retirement_plan_type = "SIMPLE IRA",
                                            simple_deferral_election = 50000,
                                            simple_catchup_eligible = TRUE), tax)
 check("catch-up raises the SIMPLE limit", r_s_catch$simple_employee_deferral, 16000 + 3500)
+
+# ---------------------------------------------------------------------------
+section("Reconciliation against a CPA-prepared PA paystub (08/01/2026)")
+# Real reference: Susan Shultz CPA, MPACT Predictive Modeling LLC.
+# 172 hrs x $70 = $12,040 gross, SIMPLE deferral $600, Match formula.
+# The CPA used a 27% federal planning rate. Withholding lines this model
+# is expected to reproduce (SITW/LITW shown pre-rounding; the paystub
+# rounds to $369.63 / $198.66).
+pay_tax <- modifyList(tax, list(fed_wh_rate = 0.27, ee_sui_uncapped = TRUE))
+pay_in <- with_inputs(retirement_plan_type = "SIMPLE IRA", simple_employer_formula = "Match",
+                      wage_rate = 70, billable_hours = 172, billing_rate = 100,
+                      simple_deferral_election = 600, ytd_wages = 0)
+p <- calculate_planner(pay_in, pay_tax)
+check("gross wages = $12,040", p$gross_wages, 12040)
+check("FITW = $3,088.80 (27% of gross - deferral)", p$fed_withholding, 3088.80)
+check("SSWH = $746.48 (6.2% of full gross)", p$ee_ss, 746.48)
+check("MCWH = $174.58 (1.45% of full gross)", p$ee_medicare, 174.58)
+check("SITW ~ $369.63 (3.07% of full gross)", round(p$state_income_tax, 2), 369.63)
+check("LITW = $198.66 (1.65% of full gross)", p$local_tax, 198.66)
+check("PASUI ~ $8.43 (0.07% of full gross, uncapped)", round(p$ee_sui, 2), 8.43)
+check("employer SIMPLE match = $361.20 (3% of gross, capped)", p$simple_employer_contribution, 361.20)
+check("FUTA = $42.00 (0.6% of the $7,000 base)", p$futa, 42.00)
+# One documented setting difference vs. this paystub, not a code issue:
+#  - Employer PA UC: paystub $649.68 uses the employer's exact assigned rate
+#    (~6.4968%); the app default 6.5% gives $650.00. Enter the assigned rate.
 
 # ---------------------------------------------------------------------------
 section("Retirement plans are mutually exclusive: no field leakage")
