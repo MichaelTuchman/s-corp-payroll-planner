@@ -97,8 +97,16 @@ calculate_planner <- function(inputs, tax) {
   ee_medicare <- gross_wages * tax$ee_medicare_rate
   add_medicare <- max(0, inputs$ytd_wages + gross_wages - tax$add_medicare_threshold) * tax$add_medicare_rate -
     max(0, inputs$ytd_wages - tax$add_medicare_threshold) * tax$add_medicare_rate
-  state_income_tax <- taxable_wages * tax$state_income_tax_rate
-  local_tax <- taxable_wages * tax$local_tax_rate
+  # Retirement deferrals reduce ONLY federal taxable wages. Pennsylvania does
+  # not recognize elective deferrals (401(k), SIMPLE, etc.) as pre-tax for
+  # state or local income tax, so those are computed on full gross wages --
+  # confirmed against a CPA-prepared PA paystub (gross 12,040, deferral 600:
+  # SITW 369.63 = 3.07% x 12,040, LITW 198.66 = 1.65% x 12,040). FICA is
+  # likewise on full gross. Only fed_withholding above uses taxable_wages.
+  # NOTE: this is the PA treatment. Most states follow the federal pre-tax
+  # rule, so a nationwide version would need this to be configurable.
+  state_income_tax <- gross_wages * tax$state_income_tax_rate
+  local_tax <- gross_wages * tax$local_tax_rate
   ee_sui <- sui_taxable * tax$ee_sui_rate
   ee_leave <- gross_wages * tax$ee_leave_rate
 
@@ -254,12 +262,12 @@ glossary <- data.frame(
     "Creates a retirement reserve.",
     "Applies the annual SEP contribution limit.",
     "Employer-only contribution, same mechanic as SEP's rate.",
-    "Comes out of the paycheck itself; pre-tax, so it reduces federal/state/local taxable wages but not FICA wages.",
+    "Comes out of the paycheck itself; pre-tax for federal income tax only. In PA it does not reduce state or local income tax, and never reduces FICA wages.",
     "Raises both the employee deferral limit and the combined limit by the catch-up amount.",
     "Applies the annual employee deferral limit (plus catch-up if eligible).",
     "Applies the combined employee + employer limit.",
     "The law only allows one of two employer formulas per year: a dollar-for-dollar match (capped by the match rate), or a flat nonelective rate paid regardless of what the employee defers.",
-    "Comes out of the paycheck itself; pre-tax, so it reduces federal/state/local taxable wages but not FICA wages. Subject to SIMPLE IRA's own (lower) deferral limit, not the Solo 401(k) limit.",
+    "Comes out of the paycheck itself; pre-tax for federal income tax only. In PA it does not reduce state or local income tax, and never reduces FICA wages. Subject to SIMPLE IRA's own (lower) deferral limit, not the Solo 401(k) limit.",
     "Raises the SIMPLE IRA employee deferral limit by the catch-up amount.",
     "Applies the SIMPLE IRA annual employee deferral limit (plus catch-up if eligible).",
     "Identifies this scenario at a glance — shown first in the snapshot table, a better label than the month alone.",
