@@ -53,6 +53,7 @@ numeric_field_labels <- c(
   add_medicare_threshold = "Additional Medicare Threshold",
   state_income_tax_rate = "State Income-Tax Rate",
   local_tax_rate = "Local Income / Occupational Tax Rate",
+  lst = "Local Services Tax (LST)",
   ee_sui_rate = "Employee State Unemployment Rate",
   er_sui_rate = "Employer State Unemployment Rate",
   sui_wage_base = "State Unemployment Wage Base",
@@ -155,6 +156,21 @@ ui <- page_sidebar(
     .ytd-zero {
       color: #8a5a00;
       font-weight: 600;
+    }
+
+    /* A settings toggle that's easy to lose in the long stack of rate inputs.
+       A pale panel with a left accent lifts it just enough to spot without
+       shouting -- same blue family as the sidebar so it stays in key. */
+    .callout-input {
+      background-color: #eef5ff;
+      border: 1px solid #cfe2ff;
+      border-left: 3px solid #6ea8fe;
+      border-radius: 4px;
+      padding: 0.5rem 0.65rem;
+      margin-bottom: 0.75rem;
+    }
+    .callout-input .form-check {
+      margin-bottom: 0;
     }
   ")),
 
@@ -265,10 +281,13 @@ ui <- page_sidebar(
         numericInput("add_medicare_threshold", "Additional Medicare threshold ($ annual)", value = 200000, min = 0),
         numericInput("state_income_tax_rate", "State income-tax rate (%)", value = 3.07, min = 0, max = 100, step = 0.01),
         numericInput("local_tax_rate", "Local income / occupational tax rate (%)", value = 1.65, min = 0, max = 100, step = 0.01),
+        numericInput("lst", "Local Services Tax (LST) — flat $ per pay (PA municipal)", value = 0, min = 0, step = 0.01),
         numericInput("ee_sui_rate", "Employee state unemployment rate (%)", value = 0.07, min = 0, max = 100, step = 0.01),
         numericInput("er_sui_rate", "Employer state unemployment rate (%)", value = 6.5, min = 0, max = 100, step = 0.01),
         numericInput("sui_wage_base", "State unemployment wage base ($ annual)", value = 10000, min = 0),
-        checkboxInput("ee_sui_uncapped", "Employee unemployment taxed on all wages (no wage base cap — PA)", value = FALSE),
+        div(class = "callout-input",
+          checkboxInput("ee_sui_uncapped", "Employee unemployment taxed on all wages (no wage base cap — PA)", value = FALSE)
+        ),
         numericInput("ee_leave_rate", "Employee leave / disability rate (%)", value = 0, min = 0, max = 100, step = 0.01),
         numericInput("er_leave_rate", "Employer leave / disability rate (%)", value = 0, min = 0, max = 100, step = 0.01),
         numericInput("other_state_er_rate", "Other state payroll-tax rate (%)", value = 0, min = 0, max = 100, step = 0.01),
@@ -479,6 +498,7 @@ server <- function(input, output, session) {
       add_medicare_threshold = input$add_medicare_threshold,
       state_income_tax_rate = input$state_income_tax_rate / 100,
       local_tax_rate = input$local_tax_rate / 100,
+      lst = input$lst,
       ee_sui_rate = input$ee_sui_rate / 100,
       er_sui_rate = input$er_sui_rate / 100,
       sui_wage_base = input$sui_wage_base,
@@ -579,13 +599,14 @@ server <- function(input, output, session) {
         "Gross W-2 wages", "Federal income tax withheld", "Employee Social Security",
         "Employee Medicare", "Additional Medicare (surtax above threshold)", "State income tax",
         "Local income / occupational tax", "Employee state unemployment",
-        "Employee leave / disability", "Total employee withholding",
+        "Employee leave / disability", "Local Services Tax (LST)",
+        "Total employee withholding",
         "Retirement employee deferral", "Net employee paycheck"
       ),
       Amount = c(
         money(r$gross_wages), money(r$fed_withholding), money(r$ee_ss),
         money(r$ee_medicare), money(r$add_medicare), money(r$state_income_tax),
-        money(r$local_tax), money(r$ee_sui), money(r$ee_leave),
+        money(r$local_tax), money(r$ee_sui), money(r$ee_leave), money(r$lst),
         money(r$total_ee_withholding), money(r$retirement_employee_deferral),
         money(r$net_paycheck)
       ),

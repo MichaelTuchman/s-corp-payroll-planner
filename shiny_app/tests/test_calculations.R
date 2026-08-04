@@ -119,6 +119,20 @@ check("cash-neutral: shifts paycheck -> deposit, total unchanged",
       r_afw$total_payroll_cash_requirement, r$total_payroll_cash_requirement)
 
 # ---------------------------------------------------------------------------
+section("Local Services Tax (LST): flat withholding, not a rate")
+check("defaults to 0 when unset (general, non-PA case)", r$lst, 0)
+r_lst <- calculate_planner(with_inputs(), modifyList(tax, list(lst = 4)))
+check("is the flat amount entered, independent of gross", r_lst$lst, 4)
+check("does NOT reduce taxable wages (FICA unchanged)", r_lst$ee_ss, r$ee_ss)
+check("does NOT change federal withholding", r_lst$fed_withholding, r$fed_withholding)
+check("is added into total employee withholding",
+      r_lst$total_ee_withholding, r$total_ee_withholding + 4)
+check("reduces the paycheck by exactly the amount", r_lst$net_paycheck, r$net_paycheck - 4)
+check("cash-neutral: shifts paycheck -> deposit, total unchanged",
+      r_lst$total_payroll_cash_requirement, r$total_payroll_cash_requirement)
+check("does not touch the employer side", r_lst$er_ss, r$er_ss)
+
+# ---------------------------------------------------------------------------
 section("SEP-IRA is employer-only")
 r_sep <- calculate_planner(with_inputs(retirement_plan_type = "SEP-IRA", sep_rate = 0.15), tax)
 check("contribution = rate x gross", r_sep$sep_contribution, GROSS * 0.15)
@@ -219,7 +233,7 @@ section("Reconciliation against a CPA-prepared PA paystub (08/01/2026)")
 # The CPA used a 27% federal planning rate. Withholding lines this model
 # is expected to reproduce (SITW/LITW shown pre-rounding; the paystub
 # rounds to $369.63 / $198.66).
-pay_tax <- modifyList(tax, list(fed_wh_rate = 0.27, ee_sui_uncapped = TRUE))
+pay_tax <- modifyList(tax, list(fed_wh_rate = 0.27, ee_sui_uncapped = TRUE, lst = 4))
 pay_in <- with_inputs(retirement_plan_type = "SIMPLE IRA", simple_employer_formula = "Match",
                       wage_rate = 70, billable_hours = 172, billing_rate = 100,
                       simple_deferral_election = 600, ytd_wages = 0)
@@ -233,6 +247,10 @@ check("LITW = $198.66 (1.65% of full gross)", p$local_tax, 198.66)
 check("PASUI ~ $8.43 (0.07% of full gross, uncapped)", round(p$ee_sui, 2), 8.43)
 check("employer SIMPLE match = $361.20 (3% of gross, capped)", p$simple_employer_contribution, 361.20)
 check("FUTA = $42.00 (0.6% of the $7,000 base)", p$futa, 42.00)
+check("LST = $4.00 (flat, the paystub's 'Other' line)", p$lst, 4)
+# The net only reconciles to the paystub once the $4.00 LST is included:
+# 12,040 - 4,590.576 withholding - 600 deferral = 6,849.42 (paystub NETPAY).
+check("net paycheck = $6,849.42 (reconciles to the paystub)", round(p$net_paycheck, 2), 6849.42)
 # One documented setting difference vs. this paystub, not a code issue:
 #  - Employer PA UC: paystub $649.68 uses the employer's exact assigned rate
 #    (~6.4968%); the app default 6.5% gives $650.00. Enter the assigned rate.
