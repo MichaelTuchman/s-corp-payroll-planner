@@ -116,8 +116,18 @@ calculate_planner <- function(inputs, tax) {
   ee_sui <- ee_sui_taxable * tax$ee_sui_rate
   ee_leave <- gross_wages * tax$ee_leave_rate
 
+  # Local Services Tax (LST): a flat per-pay dollar amount some PA
+  # municipalities levy on people who work there (commonly up to $52/year,
+  # spread across pay periods). It is NOT a percentage of wages and does not
+  # reduce taxable wages -- it is simply withheld from the paycheck and
+  # remitted to the local taxing authority, so it is cash-neutral to the total
+  # payroll cost (net pay drops by it, its deposit rises by it). Confirmed
+  # against the CPA paystub, where it is the "Other" line ($4.00 = the LST
+  # column on the detail report). Defaults to 0 for the general (non-PA) case.
+  lst <- if (is.null(tax$lst) || is.na(tax$lst)) 0 else tax$lst
+
   total_ee_withholding <- fed_withholding + ee_ss + ee_medicare + add_medicare +
-    state_income_tax + local_tax + ee_sui + ee_leave
+    state_income_tax + local_tax + ee_sui + ee_leave + lst
   net_paycheck <- gross_wages - total_ee_withholding - solo401k_employee_deferral - simple_employee_deferral
 
   er_ss <- ss_taxable * tax$er_ss_rate
@@ -130,6 +140,7 @@ calculate_planner <- function(inputs, tax) {
   federal_deposit <- fed_withholding + ee_ss + ee_medicare + add_medicare + er_ss + er_medicare
   state_wh_deposit <- state_income_tax
   local_deposit <- local_tax
+  lst_deposit <- lst
   sui_deposit <- ee_sui + er_sui
   leave_deposit <- ee_leave + er_leave
   other_state_deposit <- other_state_er
@@ -149,7 +160,7 @@ calculate_planner <- function(inputs, tax) {
   retirement_reserve <- sep_reserve + solo401k_reserve + simple_reserve
 
   total_payroll_cash_requirement <- net_paycheck + federal_deposit + state_wh_deposit +
-    local_deposit + sui_deposit + leave_deposit + other_state_deposit + futa_reserve +
+    local_deposit + lst_deposit + sui_deposit + leave_deposit + other_state_deposit + futa_reserve +
     retirement_reserve
 
   cash_after_obligations <- inputs$beginning_cash + client_receipts -
@@ -174,6 +185,7 @@ calculate_planner <- function(inputs, tax) {
     local_tax = local_tax,
     ee_sui = ee_sui,
     ee_leave = ee_leave,
+    lst = lst,
     total_ee_withholding = total_ee_withholding,
     net_paycheck = net_paycheck,
     er_ss = er_ss,
@@ -197,6 +209,7 @@ calculate_planner <- function(inputs, tax) {
     federal_deposit = federal_deposit,
     state_wh_deposit = state_wh_deposit,
     local_deposit = local_deposit,
+    lst_deposit = lst_deposit,
     sui_deposit = sui_deposit,
     leave_deposit = leave_deposit,
     other_state_deposit = other_state_deposit,
@@ -242,7 +255,8 @@ glossary <- data.frame(
     "Expected billed revenue",
     "Gross W-2 wages", "Federal income tax withheld", "Employee Social Security", "Employee Medicare",
     "Additional Medicare", "State income tax", "Local income / occupational tax",
-    "Employee state unemployment", "Employee leave / disability", "Total employee withholding",
+    "Employee state unemployment", "Employee leave / disability", "Local Services Tax (LST)",
+    "Total employee withholding",
     "Solo 401(k) employee elective deferral", "SIMPLE IRA employee elective deferral",
     "Net employee paycheck", "Employer Social Security", "Employer Medicare",
     "Employer state unemployment", "Employer leave / disability", "Other state payroll tax",
@@ -313,6 +327,7 @@ glossary <- data.frame(
     "Gross wages × local rate.",
     "Subject to state wage base.",
     "Gross wages × employee rate.",
+    "A flat dollar tax — never a percentage of wages — that some PA municipalities levy on those who work there. It carries a statutory yearly cap (currently $52 total per employer per year), collected in even per-pay installments rather than all at once. Does not reduce taxable wages; withheld from the paycheck and remitted to the local taxing authority. Enter the per-pay amount, or 0 if none applies.",
     "Sum of employee withholding.",
     "The elected deferral, capped by the deferral limit (plus catch-up if eligible) and by remaining room under the combined limit.",
     "The elected deferral, capped by the SIMPLE IRA deferral limit (plus catch-up if eligible).",
@@ -353,7 +368,7 @@ glossary <- data.frame(
     "IRS annual limit", "IRS annual limit", "IRS Publication 15", "IRS Publication 15",
     "Calculated", "Calculated", "Calculated", "Calculated",
     "Calculated", "Calculated", "Calculated", "Calculated", "Calculated",
-    "Calculated", "Calculated", "Calculated", "Calculated", "Calculated",
+    "Calculated", "Municipal LST — enter your local amount (up to ~$52/yr).", "Calculated", "Calculated", "Calculated", "Calculated",
     "Calculated", "Calculated", "Calculated", "Calculated", "Calculated",
     "Calculated", "Calculated", "Calculated", "Calculated", "Calculated",
     "Calculated", "Calculated", "Calculated", "Calculated", "Calculated",
@@ -393,6 +408,7 @@ build_snapshot_row <- function(inputs, tax, results) {
     "Local Tax ($)" = results$local_tax,
     "Employee State UI ($)" = results$ee_sui,
     "Employee Leave / Disability ($)" = results$ee_leave,
+    "Local Services Tax (LST) ($)" = results$lst,
     "Total Employee Withholding ($)" = results$total_ee_withholding,
     "Retirement Employee Deferral ($)" = results$retirement_employee_deferral,
     "Net Paycheck ($)" = results$net_paycheck,
@@ -407,6 +423,7 @@ build_snapshot_row <- function(inputs, tax, results) {
     "Federal Payroll Tax Deposit ($)" = results$federal_deposit,
     "State Withholding Deposit ($)" = results$state_wh_deposit,
     "Local Tax Deposit ($)" = results$local_deposit,
+    "Local Services Tax Deposit ($)" = results$lst_deposit,
     "State UI Deposit ($)" = results$sui_deposit,
     "State Leave / Disability Deposit ($)" = results$leave_deposit,
     "Other State Payroll Deposit ($)" = results$other_state_deposit,
